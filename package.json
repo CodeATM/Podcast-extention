@@ -1,0 +1,21 @@
+{
+  "name": "twitter-podcast-extension",
+  "version": "1.0.0",
+  "description": "Save tweets to a podcast queue with intelligent thread and conversation detection",
+  "scripts": {
+    "build": "node build.js",
+    "package": "node build.js"
+  },
+  "keywords": [
+    "twitter",
+    "podcast",
+    "chrome-extension",
+    "social-media",
+    "productivity"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "archiver": "^5.3.1"
+  }
+}

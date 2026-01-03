@@ -1,0 +1,43 @@
+{
+    "manifest_version": 3,
+    "name": "Twitter Podcast Queue",
+    "version": "1.0.0",
+    "description": "Save tweets to a podcast queue with intelligent thread and conversation detection",
+    "permissions": [
+        "storage",
+        "downloads",
+        "tabs"
+    ],
+    "host_permissions": [
+        "https://twitter.com/*",
+        "https://x.com/*"
+    ],
+    "content_scripts": [
+        {
+            "matches": [
+                "https://twitter.com/*",
+                "https://x.com/*"
+            ],
+            "js": [
+                "content.js"
+            ],
+            "css": [
+                "styles.css"
+            ]
+        }
+    ],
+    "action": {
+        "default_popup": "popup.html",
+        "default_title": "Twitter Podcast Queue",
+        "default_icon": {
+            "16": "icons/icon16.png",
+            "48": "icons/icon48.png",
+            "128": "icons/icon128.png"
+        }
+    },
+    "icons": {
+        "16": "icons/icon16.png",
+        "48": "icons/icon48.png",
+        "128": "icons/icon128.png"
+    }
+}

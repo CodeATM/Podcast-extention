@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twitter Podcast Queue</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <svg class="logo-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 2C9.243 2 7 4.243 7 7v6c0 2.757 2.243 5 5 5s5-2.243 5-5V7c0-2.757-2.243-5-5-5zm-3 7c0-1.654 1.346-3 3-3s3 1.346 3 3v6c0 1.654-1.346 3-3 3s-3-1.346-3-3V9zm11 4h-2c0 3.309-2.691 6-6 6s-6-2.691-6-6H4c0 3.998 3.019 7.311 6.837 7.915l-.82 2.46 1.896.632 1.05-3.151C12.639 20.938 12.32 20.957 12 20.957s-.639-.019-1.163-.093l1.05 3.151 1.896-.632-.82-2.46A8.006 8.006 0 0 0 20 13z"/>
+                    </svg>
+                    <div class="logo-text">
+                        <h1>Podcast Queue</h1>
+                        <p class="logo-subtitle">Twitter content curator</p>
+                    </div>
+                </div>
+                <div class="queue-badge">
+                    <span id="queue-count">0</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div id="queue-list" class="queue-list">
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 2C9.243 2 7 4.243 7 7v6c0 2.757 2.243 5 5 5s5-2.243 5-5V7c0-2.757-2.243-5-5-5zm-3 7c0-1.654 1.346-3 3-3s3 1.346 3 3v6c0 1.654-1.346 3-3 3s-3-1.346-3-3V9zm11 4h-2c0 3.309-2.691 6-6 6s-6-2.691-6-6H4c0 3.998 3.019 7.311 6.837 7.915l-.82 2.46 1.896.632 1.05-3.151C12.639 20.938 12.32 20.957 12 20.957s-.639-.019-1.163-.093l1.05 3.151 1.896-.632-.82-2.46A8.006 8.006 0 0 0 20 13z"/>
+                        </svg>
+                    </div>
+                    <h3>No tweets saved yet</h3>
+                    <p>Click the 🎙️ button on any tweet to start building your podcast queue</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <button id="export-btn" class="btn btn-primary" disabled>
+                <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                </svg>
+                Export Queue
+            </button>
+            <button id="clear-btn" class="btn btn-secondary" disabled>
+                <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+                Clear All
+            </button>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
