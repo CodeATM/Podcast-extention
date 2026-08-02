@@ -7,11 +7,13 @@ mkdir temp_package
 
 :: Copy required files
 copy manifest.json temp_package\
+copy background.js temp_package\
 copy content.js temp_package\
-copy popup.html temp_package\
-copy popup.js temp_package\
-copy popup.css temp_package\
+copy sidepanel.html temp_package\
+copy sidepanel.js temp_package\
+copy sidepanel.css temp_package\
 copy styles.css temp_package\
+copy logo.png temp_package\
 copy README.md temp_package\
 copy PRIVACY.md temp_package\
 

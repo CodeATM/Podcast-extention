@@ -3,7 +3,8 @@
 
 console.log('🧹 Clearing old tweet data formats...');
 
-chrome.storage.local.clear().then(() => {
+if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+  chrome.storage.local.clear().then(() => {
     console.log('✅ All old data cleared!');
     console.log('🎯 Ready for new comprehensive tweet format');
     console.log('📊 New format includes:');
@@ -14,4 +15,5 @@ chrome.storage.local.clear().then(() => {
     console.log('  - Professional metadata (tags, collector_note)');
     console.log('');
     console.log('🎙️ Try saving some tweets now!');
-});
+  });
+}
