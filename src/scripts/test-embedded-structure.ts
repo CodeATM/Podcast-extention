@@ -3,6 +3,11 @@
 
 console.log('🧪 Testing New Embedded Data Structure...');
 
+/**
+ * Tests the embedded tweet structure stored in Chrome local storage.
+ *
+ * Logs the total number of stored tweets and counts reply and quote tweets.
+ */
 export async function testEmbeddedStructure(): Promise<void> {
   if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
     console.warn('Chrome storage API not available in current scope');

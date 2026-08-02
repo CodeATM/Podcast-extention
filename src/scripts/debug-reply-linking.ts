@@ -3,6 +3,9 @@
 
 console.log('🔍 Debug: Reply Linking Functionality');
 
+/**
+ * Inspects tweet articles on the current page and logs reply context, tweet metadata, and available status links.
+ */
 export function debugReplyDetection(): void {
   console.log('\n🎯 Testing Reply Detection...');
   
@@ -86,6 +89,9 @@ export function debugReplyDetection(): void {
   });
 }
 
+/**
+ * Tests reply-context extraction for the first tweet containing an extension button.
+ */
 export function testExtensionReplyDetection(): void {
   console.log('\n🧪 Testing Extension Reply Detection...');
   
@@ -168,6 +174,9 @@ export function testExtensionReplyDetection(): void {
   }
 }
 
+/**
+ * Tests access to locally stored podcast tweets and logs the number of stored entries.
+ */
 export async function testStorageOperations(): Promise<void> {
   console.log('\n💾 Testing Storage Operations...');
   

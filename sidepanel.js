@@ -3,7 +3,11 @@
   // src/auth/storage.ts
   var DEFAULT_BACKEND_URL = "http://localhost:5000";
 
-  // src/api.ts
+  /**
+   * Sends a message to the extension's background process.
+   * @param {*} message - The message to send.
+   * @return {Promise<Object>} A response object containing the background result or an error.
+   */
   function sendToBackground(message) {
     return new Promise((resolve) => {
       if (typeof chrome === "undefined" || !chrome.runtime?.sendMessage) {
@@ -19,6 +23,10 @@
       });
     });
   }
+  /**
+   * Retrieves the Sonara backend configuration and authentication state.
+   * @return {Object} The configured Sonara settings, or default backend settings with authentication disabled.
+   */
   async function getSonaraConfig() {
     const response = await sendToBackground({ action: "AUTH_GET_CONFIG" });
     if (response.success && response.config) {
@@ -29,12 +37,28 @@
       authenticated: false
     };
   }
+  /**
+   * Authenticates a user with the provided credentials and backend URL.
+   * @param {string} email - The user's email address.
+   * @param {string} password - The user's password.
+   * @param {string} backendUrl - The backend URL used for authentication.
+   * @return {Promise<*>} The authentication response.
+   */
   async function login(email, password, backendUrl) {
     return sendToBackground({ action: "AUTH_LOGIN", email, password, backendUrl });
   }
+  /**
+   * Signs the current user out.
+   * @return {Object} The background response for the logout request.
+   */
   async function logout() {
     return sendToBackground({ action: "AUTH_LOGOUT" });
   }
+  /**
+   * Loads saved tweets and normalizes their pagination data.
+   * @return {{items: Array, pagination: {page: number, limit: number, total: number, totalPages: number}}} The saved tweets and pagination metadata.
+   * @throws {Error} If the request fails.
+   */
   async function getSavedTweets() {
     const response = await sendToBackground({ action: "API_FETCH", path: "/api/tweets", method: "GET" });
     if (!response.success) {
@@ -57,6 +81,11 @@
       }
     };
   }
+  /**
+   * Formats a timestamp as relative time from the current moment.
+   * @param {string} dateString - The timestamp to format.
+   * @return {string} Relative time such as "Just now", "45s ago", or "2 days ago".
+   */
   function formatTimeAgo(dateString) {
     const date = new Date(dateString);
     const now = /* @__PURE__ */ new Date();
@@ -89,6 +118,9 @@
   var tweetsLoading = false;
   var cachedTweets = [];
   var tweetTotal = 0;
+  /**
+   * Initializes the side panel and displays the appropriate view based on authentication state.
+   */
   async function initPanel() {
     setupEventListeners();
     try {
@@ -103,14 +135,26 @@
       showSetupView();
     }
   }
+  /**
+   * Builds a workspace URL from the configured backend address and path.
+   * @param {string} [path="/"] - The workspace path to append.
+   * @return {string} The complete workspace URL.
+   */
   function workspaceUrl(path = "/") {
     const base = (currentConfig.backendUrl || DEFAULT_BACKEND_URL).replace(/\/+$/, "");
     const suffix = path.startsWith("/") ? path : `/${path}`;
     return `${base}${suffix}`;
   }
+  /**
+   * Opens a workspace page in a new browser tab.
+   * @param {string} [path="/"] - The workspace path to open.
+   */
   function openWorkspace(path = "/") {
     chrome.tabs.create({ url: workspaceUrl(path) });
   }
+  /**
+   * Registers event handlers for authentication, tweet capture, saved-tweet management, settings, workspace navigation, and background tweet updates.
+   */
   function setupEventListeners() {
     const loginForm = document.getElementById("login-form");
     loginForm?.addEventListener("submit", (e) => {
@@ -163,15 +207,24 @@
       }
     });
   }
+  /**
+   * Hides the panel's boot view.
+   */
   function hideBoot() {
     document.getElementById("boot-view")?.classList.add("hidden");
   }
+  /**
+   * Displays the setup view and resets the login button state.
+   */
   function showSetupView() {
     hideBoot();
     document.getElementById("setup-view")?.classList.remove("hidden");
     document.getElementById("dashboard-view")?.classList.add("hidden");
     resetLoginButton();
   }
+  /**
+   * Displays the dashboard view and loads its saved tweets.
+   */
   function showDashboardView() {
     hideBoot();
     document.getElementById("setup-view")?.classList.add("hidden");
@@ -179,6 +232,9 @@
     void loadSavedTweets(cachedTweets.length ? "silent" : "full");
     updateModalDetails();
   }
+  /**
+   * Handles user sign-in from the login form and displays the resulting status.
+   */
   async function handleLogin() {
     const emailInput = document.getElementById("login-email");
     const passwordInput = document.getElementById("login-password");
@@ -217,6 +273,9 @@
       resetLoginButton();
     }
   }
+  /**
+   * Restores the login button to its default enabled state.
+   */
   function resetLoginButton() {
     const loginBtn = document.getElementById("init-sync-btn");
     const btnText = document.getElementById("sync-btn-text");
@@ -230,6 +289,11 @@
     if (loginBtn)
       loginBtn.disabled = false;
   }
+  /**
+   * Displays a setup feedback message with the specified status styling.
+   * @param {string} msg - The feedback message to display.
+   * @param {string} type - The feedback status type, such as `success` or `error`.
+   */
   function showFeedback(msg, type) {
     const feedback = document.getElementById("setup-feedback");
     if (!feedback)
@@ -238,6 +302,9 @@
     feedback.classList.remove("hidden", "success", "error");
     feedback.classList.add(type);
   }
+  /**
+   * Updates the current tab context and retrieves detected tweet details from Twitter or X tabs.
+   */
   async function checkActiveTab() {
     if (typeof chrome === "undefined" || !chrome.tabs)
       return;
@@ -267,6 +334,10 @@
       console.warn("Tab query error:", err);
     }
   }
+  /**
+   * Updates the detected tweet context displayed in the panel.
+   * @param {Object} context - The detected tweet context containing author and content details.
+   */
   function updateDetectedContext(context) {
     const nameEl = document.getElementById("context-name");
     const handleEl = document.getElementById("context-handle");
@@ -280,6 +351,9 @@
       textEl.textContent = text.length > 160 ? `${text.slice(0, 160)}\u2026` : text;
     }
   }
+  /**
+   * Captures the tweet from the active X tab and adds it to the saved-tweet list.
+   */
   async function handleCapture() {
     const captureBtn = document.getElementById("capture-btn");
     const btnText = document.getElementById("capture-btn-text");
@@ -329,6 +403,11 @@
       resetCaptureButton();
     }
   }
+  /**
+   * Shows or hides the capture overlay and optionally updates its message.
+   * @param {boolean} active - Whether the capture overlay should be visible.
+   * @param {string} [text] - Optional message to display when showing the overlay.
+   */
   function setCaptureLoading(active, text) {
     const overlay = document.getElementById("capture-overlay");
     if (!overlay)
@@ -341,6 +420,10 @@
       overlay.classList.add("hidden");
     }
   }
+  /**
+   * Updates the capture overlay message.
+   * @param {string} text - The message to display.
+   */
   function setCaptureOverlayText(text) {
     const el = document.getElementById("capture-overlay-text");
     if (el)
@@ -360,9 +443,18 @@
     btnIcon?.classList.remove("hidden");
     btnSpinner?.classList.add("hidden");
   }
+  /**
+   * Retrieves the identifier for a tweet item.
+   * @param {Object} item - The tweet item.
+   * @return {*} The item's `id` or `tweetId` value.
+   */
   function tweetKey(item) {
     return item.id || item.tweetId;
   }
+  /**
+   * Adds a newly captured tweet to the saved-tweet display and cached collection.
+   * @param {Object} tweet - Captured tweet data used to build the saved-tweet display model.
+   */
   function prependOptimisticTweet(tweet) {
     const handle = tweet.author?.username ? `@${tweet.author.username.replace(/^@/, "")}` : "@unknown";
     const optimistic = {
@@ -389,6 +481,11 @@
     insertTweetElement(optimistic, true);
     updateTweetCount();
   }
+  /**
+   * Inserts a saved tweet at the beginning of the tweet list.
+   * @param {Object} item - The saved tweet to display.
+   * @param {boolean} [highlight=false] - Whether to highlight the inserted tweet.
+   */
   function insertTweetElement(item, highlight = false) {
     const listEl = document.getElementById("saved-tweets-list");
     if (!listEl)
@@ -401,6 +498,12 @@
     const el = buildTweetElement(item, highlight);
     listEl.prepend(el);
   }
+  /**
+   * Creates a rendered saved-tweet element with author details, timestamp, text, engagement metrics, and an optional highlight style.
+   * @param {Object} item - The saved tweet data.
+   * @param {boolean} [highlight=false] - Whether to apply the new-tweet highlight style.
+   * @return {HTMLElement} The rendered tweet element.
+   */
   function buildTweetElement(item, highlight = false) {
     const el = document.createElement("div");
     el.className = highlight ? "tweet-item tweet-item-new" : "tweet-item";
@@ -431,11 +534,17 @@
     });
     return el;
   }
+  /**
+   * Updates the displayed count of saved tweets.
+   */
   function updateTweetCount() {
     const countEl = document.getElementById("tweet-count");
     if (countEl)
       countEl.textContent = String(tweetTotal);
   }
+  /**
+   * Displays loading placeholders in the saved-tweets list.
+   */
   function renderTweetSkeletons() {
     const listEl = document.getElementById("saved-tweets-list");
     if (!listEl)
@@ -453,6 +562,10 @@
     </div>
   `;
   }
+  /**
+   * Renders saved tweets in the saved-tweets list, or displays an empty-state message when no tweets are available.
+   * @param {Array} items - The saved tweets to display.
+   */
   function renderTweetList(items) {
     const listEl = document.getElementById("saved-tweets-list");
     if (!listEl)
@@ -472,6 +585,11 @@
       listEl.appendChild(el);
     });
   }
+  /**
+   * Synchronize saved tweets with refreshed data while preserving optimistic entries during reconciliation.
+   * @param {Array<Object>} items - The refreshed saved-tweet items.
+   * @param {number} total - The total number of saved tweets.
+   */
   function mergeSilent(items, total) {
     const listEl = document.getElementById("saved-tweets-list");
     if (!listEl)
@@ -520,6 +638,10 @@
       }
     });
   }
+  /**
+   * Loads saved tweets and updates the tweet list, count, and loading state.
+   * @param {string} [mode="full"] - Whether to perform a full load or silently merge refreshed results.
+   */
   async function loadSavedTweets(mode = "full") {
     const listEl = document.getElementById("saved-tweets-list");
     const refreshBtn = document.getElementById("refresh-btn");
@@ -563,9 +685,17 @@
       refreshBtn?.classList.remove("is-spinning");
     }
   }
+  /**
+   * Escapes HTML-sensitive characters in a string.
+   * @param {string} value - The text to escape.
+   * @return {string} The escaped text.
+   */
   function escapeHtml(value) {
     return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
+  /**
+   * Updates the settings modal with the current user's identity, email address, and avatar or profile initial.
+   */
   function updateModalDetails() {
     const identityEl = document.getElementById("modal-identity");
     const emailEl = document.getElementById("modal-email");
@@ -587,6 +717,11 @@
       }
     }
   }
+  /**
+   * Resolves after the specified delay.
+   * @param {number} ms - The delay duration in milliseconds.
+   * @return {Promise<void>} A promise that resolves after the delay.
+   */
   function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }

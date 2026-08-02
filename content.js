@@ -20,6 +20,12 @@
   <path d="M12 2a10 10 0 1 0 10 10h-2.5A7.5 7.5 0 1 1 12 4.5V2z"></path>
 </svg>
 `;
+  /**
+   * Finds the nearest ancestor element matching a CSS selector.
+   * @param {Element|null} el - The element whose ancestors to search.
+   * @param {string} selector - The CSS selector to match.
+   * @return {Element|null} The nearest matching ancestor, or `null` if none is found.
+   */
   function findAncestor(el, selector) {
     while (el && (el = el.parentElement)) {
       if (el.matches(selector))
@@ -27,6 +33,10 @@
     }
     return null;
   }
+  /**
+   * Checks whether the user is authenticated with Sonara.
+   * @return {Promise<{authed: boolean, error?: string}>} The authentication status and, when unavailable, an explanatory error message.
+   */
   function isAuthenticated() {
     return new Promise((resolve) => {
       try {
@@ -55,6 +65,11 @@
       }
     });
   }
+  /**
+   * Displays a temporary notification message.
+   * @param {string} message - The message to display.
+   * @param {boolean} [isError=false] - Whether to apply error styling.
+   */
   function showToast(message, isError = false) {
     const id = "t2p-toast";
     let toast = document.getElementById(id);
@@ -81,6 +96,9 @@
       }, 2600)
     );
   }
+  /**
+   * Adds a Sonara save button to each unprocessed tweet action group.
+   */
   function injectButtons() {
     const actionBars = document.querySelectorAll('div[role="group"]:not(.t2p-processed)');
     actionBars.forEach((bar) => {
@@ -110,6 +128,10 @@
   });
   observer.observe(document.body, { childList: true, subtree: true });
   setTimeout(() => injectButtons(), 1e3);
+  /**
+   * Saves the tweet associated with a button and updates the button state.
+   * @param {HTMLElement} btn - The button used to initiate the tweet capture.
+   */
   async function handleTweetClick(btn) {
     if (btn.classList.contains("t2p-busy"))
       return;
@@ -150,6 +172,11 @@
       showToast("Something went wrong while saving.", true);
     }
   }
+  /**
+   * Extract tweet content, metadata, author details, context, and engagement metrics from an article element.
+   * @param {HTMLElement} article - The article element containing the tweet.
+   * @returns {Object} The extracted tweet data, including its identifier, URL, capture timestamp, author, content, context, metrics, and Sonara metadata.
+   */
   function extractTweetData(article) {
     const userEl = article.querySelector('[data-testid="User-Name"]');
     let displayName = "Twitter User";
@@ -193,6 +220,11 @@
       collector_note: "Sonara capture"
     };
   }
+  /**
+   * Parses an engagement metric from an element's text content.
+   * @param {Element|null} el - The element containing the metric text.
+   * @return {number} The rounded metric value, or 0 when no value is available.
+   */
   function parseMetric(el) {
     if (!el)
       return 0;
@@ -208,6 +240,11 @@
       val *= 1e6;
     return Math.round(val);
   }
+  /**
+   * Synchronizes tweet data with the backend through the extension background worker.
+   * @param {Object} tweetData - The tweet data to synchronize.
+   * @return {Promise<boolean>} `true` if synchronization succeeds, `false` otherwise.
+   */
   async function syncTweetToBackend(tweetData) {
     return new Promise((resolve) => {
       chrome.runtime.sendMessage(
@@ -228,6 +265,10 @@
       );
     });
   }
+  /**
+   * Notifies the background worker that a tweet was updated.
+   * @param {Object} tweet - The updated tweet data.
+   */
   function notifyTweetsUpdated(tweet) {
     try {
       chrome.runtime.sendMessage({ action: "TWEETS_UPDATED", tweet }, () => void chrome.runtime.lastError);

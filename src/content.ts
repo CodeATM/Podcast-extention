@@ -22,6 +22,13 @@ const SPINNER_ICON = `
 </svg>
 `;
 
+/**
+ * Finds the nearest ancestor element matching a CSS selector.
+ *
+ * @param el - The element from which to begin the search
+ * @param selector - The CSS selector to match
+ * @returns The nearest matching ancestor, or `null` if none is found
+ */
 function findAncestor(el: HTMLElement | null, selector: string): HTMLElement | null {
   while (el && (el = el.parentElement)) {
     if (el.matches(selector)) return el;
@@ -30,8 +37,9 @@ function findAncestor(el: HTMLElement | null, selector: string): HTMLElement | n
 }
 
 /**
- * Ask the background service worker whether the user holds a valid session.
- * Content scripts never inspect tokens themselves — auth lives in the worker.
+ * Checks whether the user has a valid Sonara session.
+ *
+ * @returns An authentication result with an optional error message when the user is unauthenticated or the extension context is unavailable.
  */
 function isAuthenticated(): Promise<{ authed: boolean; error?: string }> {
   return new Promise((resolve) => {
@@ -62,6 +70,12 @@ function isAuthenticated(): Promise<{ authed: boolean; error?: string }> {
   });
 }
 
+/**
+ * Displays a temporary success or error notification.
+ *
+ * @param message - The notification text to display
+ * @param isError - Whether to style the notification as an error
+ */
 function showToast(message: string, isError = false): void {
   const id = 't2p-toast';
   let toast = document.getElementById(id) as HTMLDivElement | null;
@@ -90,7 +104,9 @@ function showToast(message: string, isError = false): void {
   );
 }
 
-// Inject Sonara Capture buttons into Twitter action bars
+/**
+ * Adds Sonara capture buttons to Twitter action bars that contain tweet controls.
+ */
 function injectButtons(): void {
   const actionBars = document.querySelectorAll('div[role="group"]:not(.t2p-processed)');
 
@@ -128,6 +144,11 @@ const observer = new MutationObserver(() => {
 observer.observe(document.body, { childList: true, subtree: true });
 setTimeout(() => injectButtons(), 1000);
 
+/**
+ * Captures the tweet associated with a Sonara button and saves it to the backend.
+ *
+ * @param btn - The capture button associated with the tweet
+ */
 async function handleTweetClick(btn: HTMLButtonElement): Promise<void> {
   if (btn.classList.contains('t2p-busy')) return;
 
@@ -179,6 +200,12 @@ async function handleTweetClick(btn: HTMLButtonElement): Promise<void> {
   }
 }
 
+/**
+ * Extracts author, content, context, metrics, and metadata from a tweet article.
+ *
+ * @param article - The tweet article element to extract data from
+ * @returns The extracted tweet data
+ */
 function extractTweetData(article: HTMLElement): TweetData {
   const userEl = article.querySelector('[data-testid="User-Name"]');
   let displayName = 'Twitter User';
@@ -230,6 +257,12 @@ function extractTweetData(article: HTMLElement): TweetData {
   };
 }
 
+/**
+ * Converts a metric element's text into an absolute numeric value.
+ *
+ * @param el - The element containing the metric text
+ * @returns The rounded metric value, interpreting `K` and `M` suffixes; `0` if the element or metric is missing or invalid
+ */
 function parseMetric(el: Element | null): number {
   if (!el) return 0;
   const text = el.textContent || '';
@@ -244,6 +277,12 @@ function parseMetric(el: Element | null): number {
   return Math.round(val);
 }
 
+/**
+ * Synchronizes tweet data with the backend through the background service worker.
+ *
+ * @param tweetData - The tweet data to synchronize
+ * @returns `true` if synchronization succeeds, `false` otherwise
+ */
 async function syncTweetToBackend(tweetData: TweetData): Promise<boolean> {
   return new Promise((resolve) => {
     // Protected API calls go through the background service worker only.
@@ -266,6 +305,11 @@ async function syncTweetToBackend(tweetData: TweetData): Promise<boolean> {
   });
 }
 
+/**
+ * Notifies the background worker that tweets have been updated.
+ *
+ * @param tweet - The updated tweet data, if available.
+ */
 function notifyTweetsUpdated(tweet?: TweetData): void {
   try {
     chrome.runtime.sendMessage({ action: 'TWEETS_UPDATED', tweet }, () => void chrome.runtime.lastError);

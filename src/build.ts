@@ -19,6 +19,9 @@ const filesToInclude = [
   'icons/icon128.png'
 ];
 
+/**
+ * Creates a compressed ZIP package containing the available extension files.
+ */
 export function createPackage(): void {
   const output = fs.createWriteStream('twitter-podcast-extension.zip');
   const archive = archiver('zip', {
