@@ -27,6 +27,7 @@ let tweetTotal = 0;
 
 async function initPanel(): Promise<void> {
   setupEventListeners();
+  registerTabListeners();
 
   try {
     currentConfig = await getSonaraConfig();
@@ -195,6 +196,11 @@ function showFeedback(msg: string, type: 'success' | 'error'): void {
   feedback.classList.add(type);
 }
 
+function isTwitterHost(hostname: string): boolean {
+  return hostname === 'twitter.com' || hostname.endsWith('.twitter.com') ||
+    hostname === 'x.com' || hostname.endsWith('.x.com');
+}
+
 async function checkActiveTab(): Promise<void> {
   if (typeof chrome === 'undefined' || !chrome.tabs) return;
 
@@ -203,17 +209,18 @@ async function checkActiveTab(): Promise<void> {
     if (!tab?.url) return;
 
     currentTabContext.url = tab.url;
+    let tabIsTwitter = false;
     try {
       const urlObj = new URL(tab.url);
       currentTabContext.domain = urlObj.hostname.replace(/^www\./, '');
-      currentTabContext.isTwitter =
-        urlObj.hostname.includes('twitter.com') || urlObj.hostname.includes('x.com');
+      tabIsTwitter = isTwitterHost(urlObj.hostname);
+      currentTabContext.isTwitter = tabIsTwitter;
     } catch {
       currentTabContext.domain = 'unknown';
       currentTabContext.isTwitter = false;
     }
 
-    if (tab.id && currentTabContext.isTwitter) {
+    if (tab.id && tabIsTwitter) {
       chrome.tabs.sendMessage(tab.id, { action: 'GET_DETECTED_CONTEXT' }, (response) => {
         if (chrome.runtime.lastError) return;
         if (response?.detectedContext) {
@@ -224,6 +231,14 @@ async function checkActiveTab(): Promise<void> {
   } catch (err) {
     console.warn('Tab query error:', err);
   }
+}
+
+function registerTabListeners(): void {
+  if (typeof chrome === 'undefined' || !chrome.tabs) return;
+  chrome.tabs.onActivated.addListener(() => void checkActiveTab());
+  chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
+    if (changeInfo.status === 'complete') void checkActiveTab();
+  });
 }
 
 function updateDetectedContext(context: {
@@ -536,6 +551,8 @@ async function loadSavedTweets(mode: 'full' | 'silent' = 'full'): Promise<void> 
   } catch (err: unknown) {
     const code = (err as { code?: string })?.code;
     if (code === 'UNAUTHENTICATED') {
+      currentConfig.authenticated = false;
+      cachedTweets = [];
       showSetupView();
       return;
     }

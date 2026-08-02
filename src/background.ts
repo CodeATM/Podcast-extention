@@ -41,6 +41,18 @@ async function parseJson(response: Response): Promise<any> {
   }
 }
 
+/**
+ * Validates that a parsed API response body contains a `data` object with all
+ * required fields. Returns the typed payload or null if validation fails.
+ */
+function validateApiPayload(body: any, requiredFields: string[]): AuthApiPayload | null {
+  if (!body?.data || typeof body.data !== 'object') return null;
+  for (const field of requiredFields) {
+    if (body.data[field] == null) return null;
+  }
+  return body.data as AuthApiPayload;
+}
+
 async function login(email: string, password: string, backendUrl?: string): Promise<BackgroundResponse> {
   const baseUrl = backendUrl ? await setBackendUrl(backendUrl) : await getBackendUrl();
 
@@ -53,6 +65,7 @@ async function login(email: string, password: string, backendUrl?: string): Prom
       clientType: 'extension',
       deviceName: 'Chrome Extension',
     }),
+    signal: AbortSignal.timeout(ACCESS_TOKEN_TTL_MS),
   });
 
   const body = await parseJson(response);
@@ -61,7 +74,11 @@ async function login(email: string, password: string, backendUrl?: string): Prom
     return apiError(body?.error?.message || 'Login failed', body?.error?.code);
   }
 
-  const data = body.data as AuthApiPayload;
+  const data = validateApiPayload(body, ['accessToken', 'refreshToken', 'user', 'session']);
+  if (!data) {
+    return apiError('Invalid response from server', 'INVALID_RESPONSE');
+  }
+
   await persistAuthPayload(data, baseUrl);
   const config = await getSonaraConfig();
   return { success: true, config, authenticated: true };
@@ -115,6 +132,7 @@ async function refreshTokens(): Promise<AuthTokens | null> {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken: state.tokens.refreshToken }),
+        signal: AbortSignal.timeout(ACCESS_TOKEN_TTL_MS),
       });
 
       const body = await parseJson(response);
@@ -126,7 +144,11 @@ async function refreshTokens(): Promise<AuthTokens | null> {
         return null;
       }
 
-      const data = body.data as AuthApiPayload;
+      const data = validateApiPayload(body, ['accessToken', 'refreshToken']);
+      if (!data) {
+        console.warn('refreshTokens: invalid response payload');
+        return null;
+      }
       await persistAuthPayload(data, state.backendUrl);
       return {
         accessToken: data.accessToken,
@@ -157,9 +179,9 @@ async function getValidAccessToken(): Promise<string | null> {
 
   try {
     const refreshed = await refreshTokens();
-    return refreshed?.accessToken ?? state.tokens.accessToken;
+    return refreshed?.accessToken ?? null;
   } catch {
-    return state.tokens.accessToken;
+    return null;
   }
 }
 
@@ -242,6 +264,7 @@ async function logout(): Promise<BackgroundResponse> {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
+        signal: AbortSignal.timeout(ACCESS_TOKEN_TTL_MS),
       });
     } catch {
       // Local logout still proceeds
@@ -290,7 +313,8 @@ function mapTweetToSavePayload(tweet: TweetData) {
   const handle = safeHandle(tweet.author?.username);
   const displayName = (tweet.author?.display_name || handle).trim().slice(0, 100) || 'Unnamed user';
   const text = (tweet.content?.text || '').trim();
-  const sourceUrl = tweet.url;
+  const rawSourceUrl = tweet.url;
+  const sourceUrl = typeof rawSourceUrl === 'string' && /^https?:\/\//.test(rawSourceUrl) ? rawSourceUrl : '';
   const mediaUrls = Array.isArray(tweet.content?.media)
     ? (tweet.content.media as string[]).filter((m): m is string => typeof m === 'string' && /^https?:\/\//.test(m))
     : [];

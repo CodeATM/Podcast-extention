@@ -16,7 +16,8 @@ const filesToInclude = [
   'PRIVACY.md',
   'icons/icon16.png',
   'icons/icon48.png',
-  'icons/icon128.png'
+  'icons/icon128.png',
+  'logo.png'
 ];
 
 export function createPackage(): void {
@@ -54,21 +55,24 @@ export function createPackage(): void {
   archive.finalize();
 }
 
-console.log('🔍 Checking required files...');
-let missingFiles: string[] = [];
+// Only run validation and packaging when executed directly as a CLI script.
+if (require.main === module) {
+  console.log('🔍 Checking required files...');
+  let missingFiles: string[] = [];
 
-filesToInclude.forEach(file => {
-  if (!fs.existsSync(file)) {
-    missingFiles.push(file);
+  filesToInclude.forEach(file => {
+    if (!fs.existsSync(file)) {
+      missingFiles.push(file);
+    }
+  });
+
+  if (missingFiles.length > 0) {
+    console.error('❌ Missing required files:');
+    missingFiles.forEach(file => console.error(`   - ${file}`));
+    process.exit(1);
   }
-});
 
-if (missingFiles.length > 0) {
-  console.error('❌ Missing required files:');
-  missingFiles.forEach(file => console.error(`   - ${file}`));
-  process.exit(1);
+  console.log('✅ All required files found');
+  console.log('📦 Creating Chrome Web Store package...');
+  createPackage();
 }
-
-console.log('✅ All required files found');
-console.log('📦 Creating Chrome Web Store package...');
-createPackage();

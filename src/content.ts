@@ -121,8 +121,13 @@ function injectButtons(): void {
 }
 
 // Observe DOM mutations for dynamic Twitter feeds
+let _injectTimer: ReturnType<typeof setTimeout> | null = null;
 const observer = new MutationObserver(() => {
-  setTimeout(() => injectButtons(), 100);
+  if (_injectTimer !== null) return;
+  _injectTimer = setTimeout(() => {
+    _injectTimer = null;
+    injectButtons();
+  }, 100);
 });
 
 observer.observe(document.body, { childList: true, subtree: true });
@@ -130,10 +135,12 @@ setTimeout(() => injectButtons(), 1000);
 
 async function handleTweetClick(btn: HTMLButtonElement): Promise<void> {
   if (btn.classList.contains('t2p-busy')) return;
+  btn.classList.add('t2p-busy');
 
   try {
     const authResult = await isAuthenticated();
     if (!authResult.authed) {
+      btn.classList.remove('t2p-busy');
       showToast(authResult.error || 'Sign in to Sonara to save tweets.', true);
       return;
     }
@@ -144,11 +151,11 @@ async function handleTweetClick(btn: HTMLButtonElement): Promise<void> {
       findAncestor(btn, '[data-testid="tweet"]');
 
     if (!tweetArticle) {
+      btn.classList.remove('t2p-busy');
       console.warn('Could not locate tweet article ancestor.');
       return;
     }
 
-    btn.classList.add('t2p-busy');
     btn.innerHTML = SPINNER_ICON;
 
     const tweetData = extractTweetData(tweetArticle);
@@ -213,7 +220,10 @@ function extractTweetData(article: HTMLElement): TweetData {
   const tweetId = tweetUrl.match(/status\/(\d+)/)?.[1] || `tw_${Date.now()}`;
 
   const context: TweetContext = {
-    is_reply: !!article.querySelector('[data-testid="reply"]'),
+    is_reply: !!article.querySelector('[data-testid="reply-to"]') ||
+              !!Array.from(article.querySelectorAll('span')).find(
+                (el) => el.textContent?.trim().toLowerCase().startsWith('replying to')
+              ),
     is_quote: !!article.querySelector('[data-testid="quote"]')
   };
 
