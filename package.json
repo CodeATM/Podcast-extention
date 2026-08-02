@@ -1,21 +1,29 @@
 {
-  "name": "twitter-podcast-extension",
-  "version": "1.0.0",
-  "description": "Save tweets to a podcast queue with intelligent thread and conversation detection",
+  "name": "sonara-v2-twitter-extension",
+  "version": "2.5.0",
+  "description": "Sonara V2 Extension - Narrative capture with session-based authentication",
   "scripts": {
-    "build": "node build.js",
-    "package": "node build.js"
+    "build:ts": "esbuild src/sidepanel.ts --bundle --outfile=sidepanel.js --format=iife --target=es2022 && esbuild src/content.ts --bundle --outfile=content.js --format=iife --target=es2022 && esbuild src/background.ts --bundle --outfile=background.js --format=iife --target=es2022",
+    "type-check": "tsc --noEmit",
+    "build": "npm run build:ts && node build.js",
+    "package": "npm run build"
   },
   "keywords": [
     "twitter",
     "podcast",
     "chrome-extension",
-    "social-media",
-    "productivity"
+    "sonara",
+    "narrative-capture",
+    "typescript"
   ],
-  "author": "Your Name",
+  "author": "Sonara Team",
   "license": "MIT",
   "devDependencies": {
-    "archiver": "^5.3.1"
+    "@types/archiver": "^8.0.0",
+    "@types/chrome": "^0.0.260",
+    "@types/node": "^26.1.2",
+    "archiver": "^5.3.1",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.3"
   }
 }

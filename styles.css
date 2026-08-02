@@ -56,6 +56,20 @@
   background-color: rgba(34, 197, 94, 0.2);
 }
 
+.t2p-button.t2p-busy {
+  pointer-events: none;
+  opacity: 0.85;
+  color: rgb(139, 92, 246);
+}
+
+.t2p-button .t2p-spin {
+  animation: t2p-spin 0.7s linear infinite;
+}
+
+@keyframes t2p-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Shadcn-like Modal Styling */
 .t2p-modal-overlay {
   position: fixed;

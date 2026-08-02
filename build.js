@@ -7,11 +7,13 @@ const archiver = require('archiver');
 // Files to include in the Chrome Web Store package
 const filesToInclude = [
     'manifest.json',
+    'background.js',
     'content.js',
-    'popup.html',
-    'popup.js',
-    'popup.css',
+    'sidepanel.html',
+    'sidepanel.js',
+    'sidepanel.css',
     'styles.css',
+    'logo.png',
     'README.md',
     'PRIVACY.md',
     'icons/icon16.png',
