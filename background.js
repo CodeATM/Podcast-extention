@@ -14,11 +14,21 @@
     legacyBackendUrl: "sonaraBackendUrl",
     legacyIdentity: "sonaraIdentity"
   };
+  /**
+   * Retrieves values from local Chrome extension storage.
+   * @param {*} keys - A storage key, array of keys, or key-to-defaults object.
+   * @return {Object} The retrieved storage values.
+   */
   function storageGet(keys) {
     return new Promise((resolve) => {
       chrome.storage.local.get(keys, (result) => resolve(result));
     });
   }
+  /**
+   * Stores values in Chrome's local extension storage.
+   * @param {Object} values - The key-value pairs to store.
+   * @return {Promise<void>} Resolves when the values are stored; rejects if the storage operation fails.
+   */
   function storageSet(values) {
     return new Promise((resolve, reject) => {
       chrome.storage.local.set(values, () => {
@@ -29,11 +39,18 @@
       });
     });
   }
+  /**
+   * Removes the specified keys from local extension storage.
+   * @param {string|string[]} keys - The storage key or keys to remove.
+   */
   function storageRemove(keys) {
     return new Promise((resolve) => {
       chrome.storage.local.remove(keys, () => resolve());
     });
   }
+  /**
+   * Migrates the legacy backend URL to the current storage key and removes obsolete authentication data.
+   */
   async function migrateLegacyStorage() {
     const result = await storageGet([STORAGE_KEYS.backendUrl, STORAGE_KEYS.legacyBackendUrl]);
     if (!result[STORAGE_KEYS.backendUrl] && typeof result[STORAGE_KEYS.legacyBackendUrl] === "string") {
@@ -43,16 +60,29 @@
     }
     await storageRemove([STORAGE_KEYS.legacyApiKey, STORAGE_KEYS.legacyIdentity, STORAGE_KEYS.legacyBackendUrl]);
   }
+  /**
+   * Retrieves the configured backend URL.
+   * @return {string} The backend URL without trailing slashes, or the default backend URL when none is configured.
+   */
   async function getBackendUrl() {
     const result = await storageGet([STORAGE_KEYS.backendUrl, STORAGE_KEYS.legacyBackendUrl]);
     const url = typeof result[STORAGE_KEYS.backendUrl] === "string" && result[STORAGE_KEYS.backendUrl] || typeof result[STORAGE_KEYS.legacyBackendUrl] === "string" && result[STORAGE_KEYS.legacyBackendUrl] || DEFAULT_BACKEND_URL;
     return String(url).replace(/\/+$/, "");
   }
+  /**
+   * Set the backend URL used by the extension.
+   * @param {string} backendUrl - The backend URL to store.
+   * @return {Promise<string>} The trimmed backend URL without trailing slashes, or the default URL when empty.
+   */
   async function setBackendUrl(backendUrl) {
     const clean = (backendUrl.trim() || DEFAULT_BACKEND_URL).replace(/\/+$/, "");
     await storageSet({ [STORAGE_KEYS.backendUrl]: clean });
     return clean;
   }
+  /**
+   * Loads the stored authentication state and backend configuration.
+   * @returns {Promise<Object>} The authentication tokens, user, session, and backend URL.
+   */
   async function loadAuthState() {
     const result = await storageGet([
       STORAGE_KEYS.accessToken,
@@ -80,6 +110,14 @@
       backendUrl
     };
   }
+  /**
+   * Persist authentication tokens, user data, session data, and backend configuration.
+   * @param {Object} input - Authentication state to store.
+   * @param {Object} input.tokens - Access token, refresh token, and expiration data.
+   * @param {Object} input.user - Authenticated user information.
+   * @param {Object} input.session - Current session information.
+   * @param {string} [input.backendUrl] - Backend URL to store after removing trailing slashes.
+   */
   async function saveAuthState(input) {
     const backendUrl = input.backendUrl ? input.backendUrl.replace(/\/+$/, "") : await getBackendUrl();
     await storageSet({
@@ -95,6 +133,9 @@
       STORAGE_KEYS.legacyIdentity
     ]);
   }
+  /**
+   * Clears stored authentication credentials and session data.
+   */
   async function clearAuthState() {
     await storageRemove([
       STORAGE_KEYS.accessToken,
@@ -106,6 +147,10 @@
       STORAGE_KEYS.legacyIdentity
     ]);
   }
+  /**
+   * Retrieves the current Sonara backend and authentication configuration.
+   * @return {{backendUrl: string, authenticated: boolean, user: object|null, session: object|null}} The backend URL, authentication status, user, and session information.
+   */
   async function getSonaraConfig() {
     const state = await loadAuthState();
     return {
@@ -115,6 +160,12 @@
       session: state.session
     };
   }
+  /**
+   * Determines whether an access token has expired or is within its safety window.
+   * @param {string} expiresAt - The token expiration timestamp.
+   * @param {number} [skewMs=60000] - The safety window in milliseconds.
+   * @return {boolean} `true` if the timestamp is invalid or the token expires within the safety window, `false` otherwise.
+   */
   function isAccessTokenExpired(expiresAt, skewMs = 6e4) {
     const expiry = Date.parse(expiresAt);
     if (Number.isNaN(expiry))
@@ -128,9 +179,20 @@
   var ACCESS_TOKEN_TTL_MS = 15 * 60 * 1e3;
   var REFRESH_MARGIN_MS = 2 * 60 * 1e3;
   var REFRESH_CHECK_PERIOD_MINUTES = 5;
+  /**
+   * Creates a standardized failed API response.
+   * @param {*} error - The error detail to include in the response.
+   * @param {*} code - The error code associated with the failure.
+   * @return {{success: false, error: *, code: *}} The failed API response.
+   */
   function apiError(error, code) {
     return { success: false, error, code };
   }
+  /**
+   * Parses a response body as JSON.
+   * @param {Response} response - The response whose body should be parsed.
+   * @return {*} The parsed JSON value, or `null` if parsing fails.
+   */
   async function parseJson(response) {
     try {
       return await response.json();
@@ -138,6 +200,11 @@
       return null;
     }
   }
+  /**
+   * Authenticates a user and stores the resulting authentication state.
+   * @param {string} backendUrl - Optional backend URL to use for the login request.
+   * @return {Promise<Object>} The authentication result with configuration on success or an error response on failure.
+   */
   async function login(email, password, backendUrl) {
     const baseUrl = backendUrl ? await setBackendUrl(backendUrl) : await getBackendUrl();
     const response = await fetch(`${baseUrl}/api/auth/login`, {
@@ -159,6 +226,11 @@
     const config = await getSonaraConfig();
     return { success: true, config, authenticated: true };
   }
+  /**
+   * Persists authentication data and enables ongoing token refresh scheduling.
+   * @param {Object} data - Authentication response containing token, user, and session data.
+   * @param {string} backendUrl - Backend URL associated with the authenticated session.
+   */
   async function persistAuthPayload(data, backendUrl) {
     const tokens = {
       accessToken: data.accessToken,
@@ -186,6 +258,11 @@
     await saveAuthState({ tokens, user, session, backendUrl });
     maintainRefreshAlarm(true);
   }
+  /**
+   * Refreshes the stored authentication tokens.
+   * Concurrent refresh requests share the same in-flight operation. Invalid refresh authorization clears the stored authentication state.
+   * @returns {{accessToken: string, refreshToken: string, expiresAt: string, expiresIn: *}|null} The refreshed token data, or `null` when no refresh token is available or refreshing fails.
+   */
   async function refreshTokens() {
     if (refreshInFlight)
       return refreshInFlight;
@@ -224,6 +301,10 @@
       refreshInFlight = null;
     }
   }
+  /**
+   * Retrieves a valid access token, refreshing it when expired.
+   * @return {string|null} The valid access token, or `null` when no refresh token is available.
+   */
   async function getValidAccessToken() {
     const state = await loadAuthState();
     if (!state.tokens?.refreshToken)
@@ -238,6 +319,10 @@
       return state.tokens.accessToken;
     }
   }
+  /**
+   * Determines the current authentication status and attempts to restore an expired session.
+   * @return {"authenticated"|"unauthenticated"|"offline"} The session status.
+   */
   async function recoverSession() {
     const state = await loadAuthState();
     if (!state.tokens?.refreshToken)
@@ -257,6 +342,10 @@
       return "offline";
     }
   }
+  /**
+   * Retrieves the current session configuration and updates authentication state accordingly.
+   * @return {Promise<Object>} The current Sonara configuration, including authentication status.
+   */
   async function getSessionConfig() {
     const status = await recoverSession();
     if (status === "unauthenticated") {
@@ -268,6 +357,10 @@
       maintainRefreshAlarm(true);
     return config;
   }
+  /**
+   * Maintains the periodic authentication token refresh alarm.
+   * @param {boolean} active - Whether the refresh alarm should be enabled.
+   */
   function maintainRefreshAlarm(active) {
     if (typeof chrome.alarms === "undefined")
       return;
@@ -281,6 +374,9 @@
       chrome.alarms.create(REFRESH_ALARM_NAME, { periodInMinutes: REFRESH_CHECK_PERIOD_MINUTES });
     });
   }
+  /**
+   * Refreshes authentication tokens when the stored session is missing or nearing expiration.
+   */
   async function refreshFromAlarm() {
     const state = await loadAuthState();
     if (!state.tokens) {
@@ -295,6 +391,10 @@
     } catch {
     }
   }
+  /**
+   * Logs out the current user and clears local authentication state.
+   * @return {Promise<Object>} The unauthenticated status and current configuration.
+   */
   async function logout() {
     const state = await loadAuthState();
     const accessToken = state.tokens?.accessToken;
@@ -314,6 +414,14 @@
     maintainRefreshAlarm(false);
     return { success: true, authenticated: false, config: await getSonaraConfig() };
   }
+  /**
+   * Sends an authenticated JSON request to the configured backend.
+   * @param {string} path - The backend request path.
+   * @param {string} [method="GET"] - The HTTP method.
+   * @param {*} [body] - The request body to serialize as JSON.
+   * @returns {Promise<Response>} The backend response.
+   * @throws {Error} An error with code `UNAUTHENTICATED` if no valid access token is available.
+   */
   async function authenticatedFetch(path, method = "GET", body, retried = false) {
     const backendUrl = await getBackendUrl();
     const accessToken = await getValidAccessToken();
@@ -336,6 +444,11 @@
     }
     return response;
   }
+  /**
+   * Maps a tweet into the payload used to save its content.
+   * @param {Object} tweet - The tweet data, including content, author, metrics, and metadata.
+   * @return {Object} A sanitized save payload containing tweet content, author details, media, metrics, thread status, and metadata.
+   */
   function mapTweetToSavePayload(tweet) {
     const safeHandle = (username, fallback = "unknown") => {
       const base = (username || "").trim().replace(/^@+/, "");
@@ -370,6 +483,11 @@
       }
     };
   }
+  /**
+   * Saves tweet content to the backend.
+   * @param {Object} tweet - The tweet data to save.
+   * @return {Object} A success result containing saved data, or an error result describing the failure.
+   */
   async function saveContent(tweet) {
     try {
       const response = await authenticatedFetch("/api/extension/save-content", "POST", mapTweetToSavePayload(tweet));
@@ -385,6 +503,11 @@
       return apiError(err?.message || "Network request failed", err?.code);
     }
   }
+  /**
+   * Handles runtime messages for authentication, configuration, API requests, and content updates.
+   * @param {Object} message - The message containing an action and any action-specific data.
+   * @returns {Promise<Object>} The result of the requested operation or a structured error response.
+   */
   async function handleMessage(message) {
     switch (message.action) {
       case "AUTH_LOGIN":
@@ -424,12 +547,19 @@
     handleMessage(message).then(sendResponse).catch((err) => sendResponse(apiError(err?.message || "Unexpected error")));
     return true;
   });
+  /**
+   * Enables the extension side panel and opens it when the extension action is clicked.
+   */
   function enableSidePanel() {
     if (typeof chrome.sidePanel === "undefined")
       return;
     chrome.sidePanel.setOptions({ path: "sidepanel.html", enabled: true }).catch((err) => console.warn("Side panel options:", err?.message || err));
     chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => console.warn("Side panel behavior:", err?.message || err));
   }
+  /**
+   * Opens the extension side panel for the specified tab's window.
+   * @param {chrome.tabs.Tab} tab - The tab whose window should display the side panel.
+   */
   async function openSidePanelForTab(tab) {
     if (typeof chrome.sidePanel === "undefined")
       return;

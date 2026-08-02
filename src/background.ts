@@ -29,10 +29,23 @@ const ACCESS_TOKEN_TTL_MS = 15 * 60 * 1000;
 const REFRESH_MARGIN_MS = 2 * 60 * 1000;
 const REFRESH_CHECK_PERIOD_MINUTES = 5;
 
+/**
+ * Creates a failed background response with an error message and optional error code.
+ *
+ * @param error - The error message.
+ * @param code - An optional error code.
+ * @returns A failed background response.
+ */
 function apiError(error: string, code?: string): BackgroundResponse {
   return { success: false, error, code };
 }
 
+/**
+ * Parses a response body as JSON.
+ *
+ * @param response - The response whose body should be parsed
+ * @returns The parsed JSON value, or `null` when the body is invalid JSON
+ */
 async function parseJson(response: Response): Promise<any> {
   try {
     return await response.json();
@@ -41,6 +54,14 @@ async function parseJson(response: Response): Promise<any> {
   }
 }
 
+/**
+ * Authenticates the extension with the backend and stores the returned session data.
+ *
+ * @param email - The account email address
+ * @param password - The account password
+ * @param backendUrl - The backend URL to use for authentication
+ * @returns A successful authenticated response with the current configuration, or a standardized authentication error
+ */
 async function login(email: string, password: string, backendUrl?: string): Promise<BackgroundResponse> {
   const baseUrl = backendUrl ? await setBackendUrl(backendUrl) : await getBackendUrl();
 
@@ -67,6 +88,12 @@ async function login(email: string, password: string, backendUrl?: string): Prom
   return { success: true, config, authenticated: true };
 }
 
+/**
+ * Persists authentication data and enables token refresh maintenance.
+ *
+ * @param data - Authentication payload containing token, user, and session details
+ * @param backendUrl - Optional backend URL to store with the authentication state
+ */
 async function persistAuthPayload(data: AuthApiPayload, backendUrl?: string): Promise<void> {
   const tokens: AuthTokens = {
     accessToken: data.accessToken,
@@ -103,6 +130,11 @@ async function persistAuthPayload(data: AuthApiPayload, backendUrl?: string): Pr
   maintainRefreshAlarm(true);
 }
 
+/**
+ * Refreshes the stored authentication tokens.
+ *
+ * @returns The refreshed authentication tokens, or `null` if no refresh token is available or the refresh fails.
+ */
 async function refreshTokens(): Promise<AuthTokens | null> {
   if (refreshInFlight) return refreshInFlight;
 
@@ -147,6 +179,11 @@ async function refreshTokens(): Promise<AuthTokens | null> {
   }
 }
 
+/**
+ * Retrieves an access token that is valid for authenticated requests.
+ *
+ * @returns The current or refreshed access token, or `null` when no refresh token is stored.
+ */
 async function getValidAccessToken(): Promise<string | null> {
   const state = await loadAuthState();
   if (!state.tokens?.refreshToken) return null;
@@ -165,6 +202,11 @@ async function getValidAccessToken(): Promise<string | null> {
 
 type SessionStatus = 'authenticated' | 'unauthenticated' | 'offline';
 
+/**
+ * Determines the current authentication status from stored credentials and token validity.
+ *
+ * @returns The session status: `authenticated` when credentials are valid or refreshed successfully, `unauthenticated` when no refresh token exists, or `offline` when authentication cannot be verified.
+ */
 async function recoverSession(): Promise<SessionStatus> {
   const state = await loadAuthState();
   if (!state.tokens?.refreshToken) return 'unauthenticated';
@@ -186,6 +228,14 @@ async function recoverSession(): Promise<SessionStatus> {
   }
 }
 
+/**
+ * Recovers the current session and returns the Sonara configuration.
+ *
+ * Clears authentication state for unauthenticated sessions and maintains the
+ * token refresh alarm according to the resulting authentication status.
+ *
+ * @returns The current Sonara configuration
+ */
 async function getSessionConfig(): Promise<SonaraConfig> {
   const status = await recoverSession();
   if (status === 'unauthenticated') {
@@ -198,9 +248,9 @@ async function getSessionConfig(): Promise<SonaraConfig> {
 }
 
 /**
- * Proactive session maintenance. Keeps a low-frequency alarm armed while a
- * session exists so the access token is refreshed just before it expires,
- * preventing the first protected call after idle time from incurring a 401.
+ * Maintains the token refresh alarm according to the authentication state.
+ *
+ * @param active - Whether authentication is currently active
  */
 function maintainRefreshAlarm(active: boolean): void {
   if (typeof chrome.alarms === 'undefined') return;
@@ -214,6 +264,9 @@ function maintainRefreshAlarm(active: boolean): void {
   });
 }
 
+/**
+ * Refreshes authentication tokens when the stored access token is near expiration or has expired.
+ */
 async function refreshFromAlarm(): Promise<void> {
   const state = await loadAuthState();
   if (!state.tokens) {
@@ -230,6 +283,11 @@ async function refreshFromAlarm(): Promise<void> {
   }
 }
 
+/**
+ * Logs out the current user and clears local authentication state.
+ *
+ * @returns The unauthenticated background response with the current configuration
+ */
 async function logout(): Promise<BackgroundResponse> {
   const state = await loadAuthState();
   const accessToken = state.tokens?.accessToken;
@@ -253,6 +311,15 @@ async function logout(): Promise<BackgroundResponse> {
   return { success: true, authenticated: false, config: await getSonaraConfig() };
 }
 
+/**
+ * Performs an authenticated request to the backend and retries once after an unauthorized response when token refresh succeeds.
+ *
+ * @param path - The backend request path
+ * @param method - The HTTP method
+ * @param body - The request body to serialize as JSON
+ * @param retried - Whether the request has already been retried
+ * @returns The backend response
+ */
 async function authenticatedFetch(path: string, method = 'GET', body?: unknown, retried = false): Promise<Response> {
   const backendUrl = await getBackendUrl();
   const accessToken = await getValidAccessToken();
@@ -280,6 +347,12 @@ async function authenticatedFetch(path: string, method = 'GET', body?: unknown, 
   return response;
 }
 
+/**
+ * Maps tweet data to a sanitized payload for saving.
+ *
+ * @param tweet - The tweet data to transform
+ * @returns A save payload containing tweet content, author details, media, metrics, thread status, and capture metadata
+ */
 function mapTweetToSavePayload(tweet: TweetData) {
   const safeHandle = (username: string | undefined, fallback = 'unknown'): string => {
     const base = (username || '').trim().replace(/^@+/, '');
@@ -319,6 +392,12 @@ function mapTweetToSavePayload(tweet: TweetData) {
   };
 }
 
+/**
+ * Saves tweet content to the backend.
+ *
+ * @param tweet - The tweet data to save
+ * @returns A successful response containing the saved content data, or a standardized error response
+ */
 async function saveContent(tweet: TweetData): Promise<BackgroundResponse> {
   try {
     const response = await authenticatedFetch('/api/extension/save-content', 'POST', mapTweetToSavePayload(tweet));
@@ -337,6 +416,12 @@ async function saveContent(tweet: TweetData): Promise<BackgroundResponse> {
   }
 }
 
+/**
+ * Dispatches background messages to authentication, configuration, API, and tweet-handling operations.
+ *
+ * @param message - The background message containing the action and its associated data
+ * @returns The response produced by the requested operation, or an error response for unsupported actions
+ */
 async function handleMessage(message: BackgroundMessage): Promise<BackgroundResponse> {
   switch (message.action) {
     case 'AUTH_LOGIN':
@@ -381,8 +466,7 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendR
 });
 
 /**
- * Opening the extension action toggles the Sonara side panel.
- * No default_popup is set — that would block this and show a toolbar popup instead.
+ * Configures the Sonara side panel to open when the extension action is clicked.
  */
 function enableSidePanel(): void {
   if (typeof chrome.sidePanel === 'undefined') return;
@@ -396,6 +480,11 @@ function enableSidePanel(): void {
     .catch((err: unknown) => console.warn('Side panel behavior:', (err as Error)?.message || err));
 }
 
+/**
+ * Opens the side panel for the tab's window or the current window.
+ *
+ * @param tab - The tab whose window should display the side panel
+ */
 async function openSidePanelForTab(tab?: chrome.tabs.Tab): Promise<void> {
   if (typeof chrome.sidePanel === 'undefined') return;
   try {

@@ -22,12 +22,24 @@ export type StoredAuthState = {
   backendUrl: string;
 };
 
+/**
+ * Retrieves values for the specified keys from local extension storage.
+ *
+ * @param keys - The storage keys to retrieve
+ * @returns A record containing the retrieved values
+ */
 function storageGet<T extends string>(keys: T[]): Promise<Record<T, unknown>> {
   return new Promise((resolve) => {
     chrome.storage.local.get(keys, (result) => resolve(result as Record<T, unknown>));
   });
 }
 
+/**
+ * Stores values in Chrome local storage.
+ *
+ * @param values - The key-value pairs to store
+ * @throws Rejects with Chrome's runtime error when storage fails
+ */
 function storageSet(values: Record<string, unknown>): Promise<void> {
   return new Promise((resolve, reject) => {
     chrome.storage.local.set(values, () => {
@@ -57,6 +69,11 @@ export async function migrateLegacyStorage(): Promise<void> {
   await storageRemove([STORAGE_KEYS.legacyApiKey, STORAGE_KEYS.legacyIdentity, STORAGE_KEYS.legacyBackendUrl]);
 }
 
+/**
+ * Retrieves the configured backend URL.
+ *
+ * @returns The configured backend URL with trailing slashes removed, or the default backend URL when none is stored.
+ */
 export async function getBackendUrl(): Promise<string> {
   const result = await storageGet([STORAGE_KEYS.backendUrl, STORAGE_KEYS.legacyBackendUrl]);
   const url =
@@ -66,12 +83,23 @@ export async function getBackendUrl(): Promise<string> {
   return String(url).replace(/\/+$/, '');
 }
 
+/**
+ * Stores a normalized backend URL.
+ *
+ * @param backendUrl - The backend URL to store; empty or whitespace-only values use the default backend URL
+ * @returns The normalized backend URL
+ */
 export async function setBackendUrl(backendUrl: string): Promise<string> {
   const clean = (backendUrl.trim() || DEFAULT_BACKEND_URL).replace(/\/+$/, '');
   await storageSet({ [STORAGE_KEYS.backendUrl]: clean });
   return clean;
 }
 
+/**
+ * Loads the persisted authentication state and backend URL.
+ *
+ * @returns The stored tokens, user, session, and normalized backend URL.
+ */
 export async function loadAuthState(): Promise<StoredAuthState> {
   const result = await storageGet([
     STORAGE_KEYS.accessToken,
@@ -106,6 +134,14 @@ export async function loadAuthState(): Promise<StoredAuthState> {
   };
 }
 
+/**
+ * Persists authentication state and the associated backend URL.
+ *
+ * Uses the existing backend URL when none is provided and removes trailing slashes
+ * from the stored URL. Legacy API-key credentials are removed after saving.
+ *
+ * @param input - Authentication tokens, user, session, and an optional backend URL
+ */
 export async function saveAuthState(input: {
   tokens: AuthTokens;
   user: AuthUser;
@@ -132,6 +168,9 @@ export async function saveAuthState(input: {
   ]);
 }
 
+/**
+ * Clears stored authentication credentials and session data.
+ */
 export async function clearAuthState(): Promise<void> {
   await storageRemove([
     STORAGE_KEYS.accessToken,
@@ -144,6 +183,11 @@ export async function clearAuthState(): Promise<void> {
   ]);
 }
 
+/**
+ * Builds the current Sonara configuration from stored authentication state.
+ *
+ * @returns The backend URL, authentication status, user, and session
+ */
 export async function getSonaraConfig(): Promise<SonaraConfig> {
   const state = await loadAuthState();
   return {
@@ -154,6 +198,13 @@ export async function getSonaraConfig(): Promise<SonaraConfig> {
   };
 }
 
+/**
+ * Determines whether an access token has expired or is within the configured expiry buffer.
+ *
+ * @param expiresAt - The token expiration timestamp.
+ * @param skewMs - The buffer before expiration during which the token is considered expired.
+ * @returns `true` if the timestamp is invalid or the token is expired or within the buffer, `false` otherwise.
+ */
 export function isAccessTokenExpired(expiresAt: string, skewMs = 60_000): boolean {
   const expiry = Date.parse(expiresAt);
   if (Number.isNaN(expiry)) return true;

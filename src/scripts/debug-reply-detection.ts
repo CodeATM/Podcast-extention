@@ -6,7 +6,9 @@ console.log('🔍 Debug Reply Detection Script');
 // Enable detailed debugging
 (window as any).debugTweetExtraction = true;
 
-// Function to test reply detection on current page
+/**
+ * Inspects tweet articles on the current page and logs reply, quoted-tweet, and status-link details.
+ */
 export function testReplyDetection(): void {
   const articles = document.querySelectorAll<HTMLElement>('article');
   console.log(`Found ${articles.length} tweet articles on page`);

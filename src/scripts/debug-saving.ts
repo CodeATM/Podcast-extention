@@ -3,6 +3,11 @@
 
 console.log('🔧 Debug Tweet Saving Script');
 
+/**
+ * Reads the stored podcast tweets from Chrome local storage.
+ *
+ * @returns The stored tweet array, or an empty array when storage is unavailable, contains invalid data, or cannot be read.
+ */
 export async function checkStorage(): Promise<any[]> {
   try {
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
@@ -19,6 +24,9 @@ export async function checkStorage(): Promise<any[]> {
   }
 }
 
+/**
+ * Clears all data from the extension's local storage.
+ */
 export async function clearStorage(): Promise<void> {
   try {
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
@@ -30,6 +38,9 @@ export async function clearStorage(): Promise<void> {
   }
 }
 
+/**
+ * Saves a mock tweet to Chrome local storage for debugging.
+ */
 export async function testSave(): Promise<void> {
   const mockTweet = {
     id: 'test_' + Date.now(),
@@ -79,6 +90,9 @@ export async function testSave(): Promise<void> {
   }
 }
 
+/**
+ * Runs storage diagnostics by checking stored tweets, saving a mock tweet, and checking the storage contents again.
+ */
 export async function runDiagnostics(): Promise<void> {
   console.log('\n🔍 Running diagnostics...');
   console.log('\n📚 Storage check:');

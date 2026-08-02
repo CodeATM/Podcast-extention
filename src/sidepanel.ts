@@ -25,6 +25,9 @@ let tweetsLoading = false;
 let cachedTweets: BackendTweetItem[] = [];
 let tweetTotal = 0;
 
+/**
+ * Initializes the panel configuration, active-tab context, and authentication view.
+ */
 async function initPanel(): Promise<void> {
   setupEventListeners();
 
@@ -42,16 +45,30 @@ async function initPanel(): Promise<void> {
   }
 }
 
+/**
+ * Builds a URL for a workspace route.
+ *
+ * @param path - The workspace path to append to the backend URL.
+ * @returns The normalized workspace URL.
+ */
 function workspaceUrl(path = '/'): string {
   const base = (currentConfig.backendUrl || DEFAULT_BACKEND_URL).replace(/\/+$/, '');
   const suffix = path.startsWith('/') ? path : `/${path}`;
   return `${base}${suffix}`;
 }
 
+/**
+ * Opens a workspace route in a new browser tab.
+ *
+ * @param path - The workspace path to open
+ */
 function openWorkspace(path = '/'): void {
   chrome.tabs.create({ url: workspaceUrl(path) });
 }
 
+/**
+ * Registers event handlers for authentication, tweet capture and refresh, settings, workspace navigation, logout, and runtime tweet updates.
+ */
 function setupEventListeners(): void {
   const loginForm = document.getElementById('login-form') as HTMLFormElement | null;
   loginForm?.addEventListener('submit', (e) => {
@@ -113,10 +130,16 @@ function setupEventListeners(): void {
   });
 }
 
+/**
+ * Hides the boot view.
+ */
 function hideBoot(): void {
   document.getElementById('boot-view')?.classList.add('hidden');
 }
 
+/**
+ * Displays the setup view and resets the login form state.
+ */
 function showSetupView(): void {
   hideBoot();
   document.getElementById('setup-view')?.classList.remove('hidden');
@@ -124,6 +147,9 @@ function showSetupView(): void {
   resetLoginButton();
 }
 
+/**
+ * Displays the authenticated dashboard view and loads the saved tweets.
+ */
 function showDashboardView(): void {
   hideBoot();
   document.getElementById('setup-view')?.classList.add('hidden');
@@ -132,6 +158,9 @@ function showDashboardView(): void {
   updateModalDetails();
 }
 
+/**
+ * Signs the user in with the credentials entered in the login form and displays the dashboard on success.
+ */
 async function handleLogin(): Promise<void> {
   const emailInput = document.getElementById('login-email') as HTMLInputElement;
   const passwordInput = document.getElementById('login-password') as HTMLInputElement;
@@ -187,6 +216,12 @@ function resetLoginButton(): void {
   if (loginBtn) loginBtn.disabled = false;
 }
 
+/**
+ * Displays a success or error message in the setup view.
+ *
+ * @param msg - The message to display
+ * @param type - The feedback message type
+ */
 function showFeedback(msg: string, type: 'success' | 'error'): void {
   const feedback = document.getElementById('setup-feedback');
   if (!feedback) return;
@@ -195,6 +230,9 @@ function showFeedback(msg: string, type: 'success' | 'error'): void {
   feedback.classList.add(type);
 }
 
+/**
+ * Updates the current tab context and retrieves detected tweet details from an active Twitter/X tab.
+ */
 async function checkActiveTab(): Promise<void> {
   if (typeof chrome === 'undefined' || !chrome.tabs) return;
 
@@ -226,6 +264,11 @@ async function checkActiveTab(): Promise<void> {
   }
 }
 
+/**
+ * Updates the displayed context for the detected tweet.
+ *
+ * @param context - Author and tweet content details to display.
+ */
 function updateDetectedContext(context: {
   author?: { display_name?: string; username?: string };
   content?: { text?: string };
@@ -242,6 +285,11 @@ function updateDetectedContext(context: {
   }
 }
 
+/**
+ * Captures the tweet from the active X tab and updates the panel with its saved state.
+ *
+ * Displays feedback for unsupported pages, missing tweets, messaging failures, and capture errors.
+ */
 async function handleCapture(): Promise<void> {
   const captureBtn = document.getElementById('capture-btn') as HTMLButtonElement | null;
   const btnText = document.getElementById('capture-btn-text');
@@ -297,6 +345,12 @@ async function handleCapture(): Promise<void> {
   }
 }
 
+/**
+ * Shows or hides the capture overlay and optionally updates its message.
+ *
+ * @param active - Whether the capture operation is in progress
+ * @param text - Optional message to display while the overlay is visible
+ */
 function setCaptureLoading(active: boolean, text?: string): void {
   const overlay = document.getElementById('capture-overlay');
   if (!overlay) return;
@@ -308,11 +362,19 @@ function setCaptureLoading(active: boolean, text?: string): void {
   }
 }
 
+/**
+ * Updates the capture overlay message.
+ *
+ * @param text - The message to display.
+ */
 function setCaptureOverlayText(text: string): void {
   const el = document.getElementById('capture-overlay-text');
   if (el) el.textContent = text;
 }
 
+/**
+ * Restores the capture button to its default enabled state and appearance.
+ */
 function resetCaptureButton(): void {
   const captureBtn = document.getElementById('capture-btn') as HTMLButtonElement | null;
   const btnText = document.getElementById('capture-btn-text');
@@ -327,10 +389,21 @@ function resetCaptureButton(): void {
   btnSpinner?.classList.add('hidden');
 }
 
+/**
+ * Gets the backend identifier for a tweet item.
+ *
+ * @param item - The tweet item whose identifier is retrieved
+ * @returns The item’s backend ID or tweet ID
+ */
 function tweetKey(item: Pick<BackendTweetItem, 'id' | 'tweetId'>): string {
   return item.id || item.tweetId;
 }
 
+/**
+ * Adds a newly captured tweet to the saved-tweet list before backend persistence completes.
+ *
+ * @param tweet - The captured tweet data to add.
+ */
 function prependOptimisticTweet(tweet: TweetData): void {
   const handle = tweet.author?.username ? `@${tweet.author.username.replace(/^@/, '')}` : '@unknown';
   const optimistic: BackendTweetItem = {
@@ -359,6 +432,12 @@ function prependOptimisticTweet(tweet: TweetData): void {
   updateTweetCount();
 }
 
+/**
+ * Adds a saved tweet to the beginning of the tweet list.
+ *
+ * @param item - The tweet to add.
+ * @param highlight - Whether to highlight the newly added tweet.
+ */
 function insertTweetElement(item: BackendTweetItem, highlight = false): void {
   const listEl = document.getElementById('saved-tweets-list');
   if (!listEl) return;
@@ -373,6 +452,13 @@ function insertTweetElement(item: BackendTweetItem, highlight = false): void {
   listEl.prepend(el);
 }
 
+/**
+ * Creates a rendered saved-tweet element with author, content, timestamp, and engagement details.
+ *
+ * @param item - The saved tweet data to display
+ * @param highlight - Whether to apply the new-tweet highlight styling
+ * @returns The rendered tweet element
+ */
 function buildTweetElement(item: BackendTweetItem, highlight = false): HTMLElement {
   const el = document.createElement('div');
   el.className = highlight ? 'tweet-item tweet-item-new' : 'tweet-item';
@@ -407,11 +493,17 @@ function buildTweetElement(item: BackendTweetItem, highlight = false): HTMLEleme
   return el;
 }
 
+/**
+ * Updates the displayed total number of saved tweets.
+ */
 function updateTweetCount(): void {
   const countEl = document.getElementById('tweet-count');
   if (countEl) countEl.textContent = String(tweetTotal);
 }
 
+/**
+ * Displays loading placeholders for the saved tweets list.
+ */
 function renderTweetSkeletons(): void {
   const listEl = document.getElementById('saved-tweets-list');
   if (!listEl) return;
@@ -429,6 +521,11 @@ function renderTweetSkeletons(): void {
   `;
 }
 
+/**
+ * Renders saved tweets in the panel, or displays an empty-state message when none are available.
+ *
+ * @param items - The saved tweets to display
+ */
 function renderTweetList(items: BackendTweetItem[]): void {
   const listEl = document.getElementById('saved-tweets-list');
   if (!listEl) return;
@@ -450,6 +547,12 @@ function renderTweetList(items: BackendTweetItem[]): void {
   });
 }
 
+/**
+ * Reconciles silently refreshed saved tweets with the cached list and rendered view.
+ *
+ * @param items - The latest saved tweets returned by the backend
+ * @param total - The total number of saved tweets
+ */
 function mergeSilent(items: BackendTweetItem[], total: number): void {
   const listEl = document.getElementById('saved-tweets-list');
   if (!listEl) return;
@@ -509,6 +612,11 @@ function mergeSilent(items: BackendTweetItem[], total: number): void {
   });
 }
 
+/**
+ * Loads saved tweets and updates the list, count, and loading state.
+ *
+ * @param mode - Whether to display the full loading UI or reconcile results silently with cached tweets. Authentication failures return the panel to the setup view.
+ */
 async function loadSavedTweets(mode: 'full' | 'silent' = 'full'): Promise<void> {
   const listEl = document.getElementById('saved-tweets-list');
   const refreshBtn = document.getElementById('refresh-btn');
@@ -555,6 +663,12 @@ async function loadSavedTweets(mode: 'full' | 'silent' = 'full'): Promise<void> 
   }
 }
 
+/**
+ * Escapes characters with special meaning in HTML.
+ *
+ * @param value - The text to escape
+ * @returns The HTML-safe escaped text
+ */
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -564,6 +678,9 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
+/**
+ * Updates the account details displayed in the modal.
+ */
 function updateModalDetails(): void {
   const identityEl = document.getElementById('modal-identity');
   const emailEl = document.getElementById('modal-email');
@@ -590,6 +707,11 @@ function updateModalDetails(): void {
   }
 }
 
+/**
+ * Waits for the specified duration.
+ *
+ * @param ms - The delay duration in milliseconds
+ */
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
