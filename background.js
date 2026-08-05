@@ -138,6 +138,15 @@
       return null;
     }
   }
+  function validateApiPayload(body, requiredFields) {
+    if (!body?.data || typeof body.data !== "object")
+      return null;
+    for (const field of requiredFields) {
+      if (body.data[field] == null)
+        return null;
+    }
+    return body.data;
+  }
   async function login(email, password, backendUrl) {
     const baseUrl = backendUrl ? await setBackendUrl(backendUrl) : await getBackendUrl();
     const response = await fetch(`${baseUrl}/api/auth/login`, {
@@ -148,13 +157,17 @@
         password,
         clientType: "extension",
         deviceName: "Chrome Extension"
-      })
+      }),
+      signal: AbortSignal.timeout(ACCESS_TOKEN_TTL_MS)
     });
     const body = await parseJson(response);
     if (!response.ok) {
       return apiError(body?.error?.message || "Login failed", body?.error?.code);
     }
-    const data = body.data;
+    const data = validateApiPayload(body, ["accessToken", "refreshToken", "user", "session"]);
+    if (!data) {
+      return apiError("Invalid response from server", "INVALID_RESPONSE");
+    }
     await persistAuthPayload(data, baseUrl);
     const config = await getSonaraConfig();
     return { success: true, config, authenticated: true };
@@ -186,6 +199,87 @@
     await saveAuthState({ tokens, user, session, backendUrl });
     maintainRefreshAlarm(true);
   }
+  async function persistOAuthFragment(fragment, backendUrl) {
+    const params = new URLSearchParams(fragment.replace(/^#/, ""));
+    const accessToken = params.get("accessToken");
+    const refreshToken = params.get("refreshToken");
+    const sessionRaw = params.get("session");
+    const userRaw = params.get("user");
+    const expiresAt = params.get("expiresAt");
+    const expiresIn = params.get("expiresIn");
+    if (!accessToken || !refreshToken || !sessionRaw || !userRaw) {
+      return { ok: false, error: "Google sign-in did not return a complete session." };
+    }
+    try {
+      const session = JSON.parse(sessionRaw);
+      const user = JSON.parse(userRaw);
+      await persistAuthPayload(
+        {
+          accessToken,
+          refreshToken,
+          expiresAt: expiresAt || new Date(Date.now() + 15 * 60 * 1e3).toISOString(),
+          expiresIn: Number(expiresIn) || 900,
+          session,
+          user
+        },
+        backendUrl
+      );
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : "Could not persist the Google session." };
+    }
+  }
+  async function finishOAuthTab(tabId, result) {
+    if (typeof tabId === "number") {
+      await chrome.tabs.remove(tabId).catch(() => void 0);
+    }
+    await chrome.runtime.sendMessage({
+      action: result.ok ? "AUTH_OAUTH_COMPLETED" : "AUTH_OAUTH_FAILED",
+      error: result.ok ? void 0 : result.error
+    }).catch(() => void 0);
+  }
+  async function handleOAuthCaptureMessage(message, sender) {
+    const backendUrl = await getBackendUrl();
+    const tabId = sender.tab?.id;
+    if (message.action === "OAUTH_ERROR_CAPTURE") {
+      await chrome.runtime.sendMessage({
+        action: "AUTH_OAUTH_FAILED",
+        error: message.message || message.error || "Google sign-in failed"
+      }).catch(() => void 0);
+      if (typeof tabId === "number") {
+        await chrome.tabs.remove(tabId).catch(() => void 0);
+      }
+      return { success: true };
+    }
+    const result = await persistOAuthFragment(message.fragment, backendUrl);
+    await finishOAuthTab(tabId, result);
+    return result.ok ? { success: true } : { success: false, error: result.error };
+  }
+  async function handleOAuthCallbackNavigation(tabId, url) {
+    const backendUrl = await getBackendUrl();
+    const origin = backendUrl.replace(/\/+$/, "");
+    let target;
+    try {
+      target = new URL(url);
+    } catch {
+      return;
+    }
+    if (target.origin !== new URL(origin).origin)
+      return;
+    const path = target.pathname.replace(/\/+$/, "") || "/";
+    if (path !== "/oauth/callback")
+      return;
+    if (target.searchParams.get("error")) {
+      await chrome.runtime.sendMessage({
+        action: "AUTH_OAUTH_FAILED",
+        error: target.searchParams.get("message") || target.searchParams.get("error")
+      }).catch(() => void 0);
+      await chrome.tabs.remove(tabId).catch(() => void 0);
+      return;
+    }
+    const result = await persistOAuthFragment(target.hash, backendUrl);
+    await finishOAuthTab(tabId, result);
+  }
   async function refreshTokens() {
     if (refreshInFlight)
       return refreshInFlight;
@@ -197,7 +291,8 @@
         const response = await fetch(`${state.backendUrl}/api/auth/refresh`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refreshToken: state.tokens.refreshToken })
+          body: JSON.stringify({ refreshToken: state.tokens.refreshToken }),
+          signal: AbortSignal.timeout(ACCESS_TOKEN_TTL_MS)
         });
         const body = await parseJson(response);
         if (!response.ok) {
@@ -206,7 +301,11 @@
           }
           return null;
         }
-        const data = body.data;
+        const data = validateApiPayload(body, ["accessToken", "refreshToken"]);
+        if (!data) {
+          console.warn("refreshTokens: invalid response payload");
+          return null;
+        }
         await persistAuthPayload(data, state.backendUrl);
         return {
           accessToken: data.accessToken,
@@ -233,9 +332,9 @@
     }
     try {
       const refreshed = await refreshTokens();
-      return refreshed?.accessToken ?? state.tokens.accessToken;
+      return refreshed?.accessToken ?? null;
     } catch {
-      return state.tokens.accessToken;
+      return null;
     }
   }
   async function recoverSession() {
@@ -305,7 +404,8 @@
           headers: {
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json"
-          }
+          },
+          signal: AbortSignal.timeout(ACCESS_TOKEN_TTL_MS)
         });
       } catch {
       }
@@ -345,7 +445,8 @@
     const handle = safeHandle(tweet.author?.username);
     const displayName = (tweet.author?.display_name || handle).trim().slice(0, 100) || "Unnamed user";
     const text = (tweet.content?.text || "").trim();
-    const sourceUrl = tweet.url;
+    const rawSourceUrl = tweet.url;
+    const sourceUrl = typeof rawSourceUrl === "string" && /^https?:\/\//.test(rawSourceUrl) ? rawSourceUrl : "";
     const mediaUrls = Array.isArray(tweet.content?.media) ? tweet.content.media.filter((m) => typeof m === "string" && /^https?:\/\//.test(m)) : [];
     const avatarUrl = tweet.author?.avatar_url;
     const authorAvatarUrl = typeof avatarUrl === "string" && /^https?:\/\//.test(avatarUrl) ? avatarUrl : void 0;
@@ -420,7 +521,11 @@
         return apiError("Unknown action");
     }
   }
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message && (message.action === "OAUTH_FRAGMENT_CAPTURE" || message.action === "OAUTH_ERROR_CAPTURE")) {
+      void handleOAuthCaptureMessage(message, sender).then(sendResponse).catch((err) => sendResponse(apiError(err?.message || "Unexpected error")));
+      return true;
+    }
     handleMessage(message).then(sendResponse).catch((err) => sendResponse(apiError(err?.message || "Unexpected error")));
     return true;
   });
@@ -457,6 +562,11 @@
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === REFRESH_ALARM_NAME) {
       void refreshFromAlarm();
+    }
+  });
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    if (changeInfo.url) {
+      void handleOAuthCallbackNavigation(tabId, changeInfo.url);
     }
   });
 })();

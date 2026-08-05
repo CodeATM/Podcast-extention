@@ -9,6 +9,7 @@ const filesToInclude = [
     'manifest.json',
     'background.js',
     'content.js',
+    'oauth-capture.js',
     'sidepanel.html',
     'sidepanel.js',
     'sidepanel.css',

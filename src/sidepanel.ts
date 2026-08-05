@@ -65,7 +65,7 @@ function setupEventListeners(): void {
   });
 
   document.getElementById('google-login-btn')?.addEventListener('click', () => {
-    openWorkspace('/auth/google');
+    openWorkspace('/api/auth/google?source=extension');
   });
 
   document.getElementById('capture-btn')?.addEventListener('click', () => void handleCapture());
@@ -110,6 +110,23 @@ function setupEventListeners(): void {
       if (message.tweet) {
         prependOptimisticTweet(message.tweet as TweetData);
       }
+      return;
+    }
+
+    if (message?.action === 'AUTH_OAUTH_COMPLETED') {
+      void getSonaraConfig()
+        .then((config) => {
+          currentConfig = config;
+          if (config.authenticated) showDashboardView();
+          else showSetupView();
+        })
+        .catch(() => showSetupView());
+      return;
+    }
+
+    if (message?.action === 'AUTH_OAUTH_FAILED') {
+      showFeedback(message.error || 'Google sign-in failed', 'error');
+      resetLoginButton();
     }
   });
 }

@@ -91,6 +91,7 @@
   var tweetTotal = 0;
   async function initPanel() {
     setupEventListeners();
+    registerTabListeners();
     try {
       currentConfig = await getSonaraConfig();
       await checkActiveTab();
@@ -121,7 +122,7 @@
       openWorkspace("/create-account");
     });
     document.getElementById("google-login-btn")?.addEventListener("click", () => {
-      openWorkspace("/auth/google");
+      openWorkspace("/api/auth/google?source=extension");
     });
     document.getElementById("capture-btn")?.addEventListener("click", () => void handleCapture());
     document.getElementById("refresh-btn")?.addEventListener("click", () => void loadSavedTweets("full"));
@@ -160,6 +161,21 @@
         if (message.tweet) {
           prependOptimisticTweet(message.tweet);
         }
+        return;
+      }
+      if (message?.action === "AUTH_OAUTH_COMPLETED") {
+        void getSonaraConfig().then((config) => {
+          currentConfig = config;
+          if (config.authenticated)
+            showDashboardView();
+          else
+            showSetupView();
+        }).catch(() => showSetupView());
+        return;
+      }
+      if (message?.action === "AUTH_OAUTH_FAILED") {
+        showFeedback(message.error || "Google sign-in failed", "error");
+        resetLoginButton();
       }
     });
   }
@@ -238,6 +254,9 @@
     feedback.classList.remove("hidden", "success", "error");
     feedback.classList.add(type);
   }
+  function isTwitterHost(hostname) {
+    return hostname === "twitter.com" || hostname.endsWith(".twitter.com") || hostname === "x.com" || hostname.endsWith(".x.com");
+  }
   async function checkActiveTab() {
     if (typeof chrome === "undefined" || !chrome.tabs)
       return;
@@ -246,15 +265,17 @@
       if (!tab?.url)
         return;
       currentTabContext.url = tab.url;
+      let tabIsTwitter = false;
       try {
         const urlObj = new URL(tab.url);
         currentTabContext.domain = urlObj.hostname.replace(/^www\./, "");
-        currentTabContext.isTwitter = urlObj.hostname.includes("twitter.com") || urlObj.hostname.includes("x.com");
+        tabIsTwitter = isTwitterHost(urlObj.hostname);
+        currentTabContext.isTwitter = tabIsTwitter;
       } catch {
         currentTabContext.domain = "unknown";
         currentTabContext.isTwitter = false;
       }
-      if (tab.id && currentTabContext.isTwitter) {
+      if (tab.id && tabIsTwitter) {
         chrome.tabs.sendMessage(tab.id, { action: "GET_DETECTED_CONTEXT" }, (response) => {
           if (chrome.runtime.lastError)
             return;
@@ -266,6 +287,15 @@
     } catch (err) {
       console.warn("Tab query error:", err);
     }
+  }
+  function registerTabListeners() {
+    if (typeof chrome === "undefined" || !chrome.tabs)
+      return;
+    chrome.tabs.onActivated.addListener(() => void checkActiveTab());
+    chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
+      if (changeInfo.status === "complete")
+        void checkActiveTab();
+    });
   }
   function updateDetectedContext(context) {
     const nameEl = document.getElementById("context-name");
@@ -545,6 +575,8 @@
     } catch (err) {
       const code = err?.code;
       if (code === "UNAUTHENTICATED") {
+        currentConfig.authenticated = false;
+        cachedTweets = [];
         showSetupView();
         return;
       }

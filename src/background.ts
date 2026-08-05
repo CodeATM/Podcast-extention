@@ -22,6 +22,11 @@ type AuthApiPayload = {
   };
 };
 
+/** Messages relayed by the `oauth-capture` content script on the API origin. */
+type OAuthCaptureMessage =
+  | { action: 'OAUTH_FRAGMENT_CAPTURE'; fragment: string }
+  | { action: 'OAUTH_ERROR_CAPTURE'; error: string; message?: string };
+
 let refreshInFlight: Promise<AuthTokens | null> | null = null;
 
 const REFRESH_ALARM_NAME = 'session-refresh';
@@ -118,6 +123,129 @@ async function persistAuthPayload(data: AuthApiPayload, backendUrl?: string): Pr
 
   await saveAuthState({ tokens, user, session, backendUrl });
   maintainRefreshAlarm(true);
+}
+
+/**
+ * Persist an OAuth token fragment (`#accessToken=...&session=...&user=...`)
+ * delivered by the backend on the terminal page. Returns `ok: false` with a
+ * reason when the fragment is incomplete or malformed.
+ */
+async function persistOAuthFragment(
+  fragment: string,
+  backendUrl: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const params = new URLSearchParams(fragment.replace(/^#/, ''));
+  const accessToken = params.get('accessToken');
+  const refreshToken = params.get('refreshToken');
+  const sessionRaw = params.get('session');
+  const userRaw = params.get('user');
+  const expiresAt = params.get('expiresAt');
+  const expiresIn = params.get('expiresIn');
+
+  if (!accessToken || !refreshToken || !sessionRaw || !userRaw) {
+    return { ok: false, error: 'Google sign-in did not return a complete session.' };
+  }
+
+  try {
+    const session = JSON.parse(sessionRaw) as AuthSession;
+    const user = JSON.parse(userRaw) as AuthUser;
+
+    await persistAuthPayload(
+      {
+        accessToken,
+        refreshToken,
+        expiresAt: expiresAt || new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+        expiresIn: Number(expiresIn) || 900,
+        session,
+        user,
+      },
+      backendUrl,
+    );
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Could not persist the Google session.' };
+  }
+}
+
+/**
+ * Handle the outcome of an OAuth callback for the given tab: notify the side
+ * panel and close the tab. Success fragments flip the panel to the feed;
+ * errors surface as `AUTH_OAUTH_FAILED`.
+ */
+async function finishOAuthTab(
+  tabId: number | undefined,
+  result: { ok: true } | { ok: false; error: string }
+): Promise<void> {
+  if (typeof tabId === 'number') {
+    await chrome.tabs.remove(tabId).catch(() => undefined);
+  }
+  await chrome.runtime.sendMessage({
+    action: result.ok ? 'AUTH_OAUTH_COMPLETED' : 'AUTH_OAUTH_FAILED',
+    error: result.ok ? undefined : result.error,
+  }).catch(() => undefined);
+}
+
+/**
+ * OAuth token capture. A web page can never write to chrome.storage, so the
+ * backend delivers the tokens in the URL fragment of `<api>/oauth/callback` and
+ * the `oauth-capture` content script on that page relays them here. This
+ * listener is the primary path; `tabs.onUpdated` below is a fallback in case
+ * the content script was not injected.
+ */
+async function handleOAuthCaptureMessage(
+  message: OAuthCaptureMessage,
+  sender: chrome.runtime.MessageSender
+): Promise<BackgroundResponse> {
+  const backendUrl = await getBackendUrl();
+  const tabId = sender.tab?.id;
+
+  if (message.action === 'OAUTH_ERROR_CAPTURE') {
+    await chrome.runtime.sendMessage({
+      action: 'AUTH_OAUTH_FAILED',
+      error: message.message || message.error || 'Google sign-in failed',
+    }).catch(() => undefined);
+    if (typeof tabId === 'number') {
+      await chrome.tabs.remove(tabId).catch(() => undefined);
+    }
+    return { success: true };
+  }
+
+  const result = await persistOAuthFragment(message.fragment, backendUrl);
+  await finishOAuthTab(tabId, result);
+  return result.ok ? { success: true } : { success: false, error: result.error };
+}
+
+/**
+ * Fallback capture path: watch the tab API for the callback navigation. The
+ * content script on the terminal page is the primary mechanism, but this
+ * covers cases where the content script could not be injected.
+ */
+async function handleOAuthCallbackNavigation(tabId: number, url: string): Promise<void> {
+  const backendUrl = await getBackendUrl();
+  const origin = backendUrl.replace(/\/+$/, '');
+
+  let target: URL;
+  try {
+    target = new URL(url);
+  } catch {
+    return;
+  }
+
+  if (target.origin !== new URL(origin).origin) return;
+  const path = target.pathname.replace(/\/+$/, '') || '/';
+  if (path !== '/oauth/callback') return;
+
+  if (target.searchParams.get('error')) {
+    await chrome.runtime.sendMessage({
+      action: 'AUTH_OAUTH_FAILED',
+      error: target.searchParams.get('message') || target.searchParams.get('error'),
+    }).catch(() => undefined);
+    await chrome.tabs.remove(tabId).catch(() => undefined);
+    return;
+  }
+
+  const result = await persistOAuthFragment(target.hash, backendUrl);
+  await finishOAuthTab(tabId, result);
 }
 
 async function refreshTokens(): Promise<AuthTokens | null> {
@@ -397,7 +525,17 @@ async function handleMessage(message: BackgroundMessage): Promise<BackgroundResp
   }
 }
 
-chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (
+    message &&
+    (message.action === 'OAUTH_FRAGMENT_CAPTURE' || message.action === 'OAUTH_ERROR_CAPTURE')
+  ) {
+    void handleOAuthCaptureMessage(message, sender)
+      .then(sendResponse)
+      .catch((err) => sendResponse(apiError(err?.message || 'Unexpected error')));
+    return true;
+  }
+
   handleMessage(message)
     .then(sendResponse)
     .catch((err) => sendResponse(apiError(err?.message || 'Unexpected error')));
@@ -453,5 +591,13 @@ chrome.runtime.onStartup.addListener(() => {
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === REFRESH_ALARM_NAME) {
     void refreshFromAlarm();
+  }
+});
+
+// Google OAuth: catch the tab navigation back to `<api>/oauth/callback#tokens`
+// (or `?error=`) and turn it into chrome.storage.
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.url) {
+    void handleOAuthCallbackNavigation(tabId, changeInfo.url);
   }
 });

@@ -3,7 +3,7 @@
   "version": "2.5.0",
   "description": "Sonara V2 Extension - Narrative capture with session-based authentication",
   "scripts": {
-    "build:ts": "esbuild src/sidepanel.ts --bundle --outfile=sidepanel.js --format=iife --target=es2022 && esbuild src/content.ts --bundle --outfile=content.js --format=iife --target=es2022 && esbuild src/background.ts --bundle --outfile=background.js --format=iife --target=es2022",
+    "build:ts": "esbuild src/sidepanel.ts --bundle --outfile=sidepanel.js --format=iife --target=es2022 && esbuild src/content.ts --bundle --outfile=content.js --format=iife --target=es2022 && esbuild src/background.ts --bundle --outfile=background.js --format=iife --target=es2022 && esbuild src/oauth-capture.ts --bundle --outfile=oauth-capture.js --format=iife --target=es2022",
     "type-check": "tsc --noEmit",
     "build": "npm run build:ts && node build.js",
     "package": "npm run build"
