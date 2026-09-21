@@ -57,6 +57,35 @@
       }
     };
   }
+  async function getCollections() {
+    const response = await sendToBackground({
+      action: "API_FETCH",
+      path: "/api/collections?limit=50&sort=alpha",
+      method: "GET"
+    });
+    if (!response.success) {
+      const err = new Error(response.error || "Failed to load collections");
+      err.code = response.code;
+      throw err;
+    }
+    const body = response.data ?? {};
+    const payload = body.data && typeof body.data === "object" ? body.data : body;
+    const rawItems = payload.items ?? body.items;
+    return Array.isArray(rawItems) ? rawItems : [];
+  }
+  async function addTweetToCollections(tweetServerId, collectionIds) {
+    const response = await sendToBackground({
+      action: "API_FETCH",
+      path: `/api/tweets/${encodeURIComponent(tweetServerId)}/collections`,
+      method: "POST",
+      body: { collectionIds }
+    });
+    if (!response.success) {
+      const err = new Error(response.error || "Failed to add tweet to collections");
+      err.code = response.code;
+      throw err;
+    }
+  }
   function formatTimeAgo(dateString) {
     const date = new Date(dateString);
     const now = /* @__PURE__ */ new Date();
@@ -89,6 +118,8 @@
   var tweetsLoading = false;
   var cachedTweets = [];
   var tweetTotal = 0;
+  var cachedCollections = [];
+  var currentCollectionTweetId = null;
   async function initPanel() {
     setupEventListeners();
     registerTabListeners();
@@ -142,6 +173,17 @@
       closeModal();
       openWorkspace("/account");
     });
+    const collectionModal = document.getElementById("collection-modal");
+    const closeCollectionModal = () => {
+      collectionModal?.classList.add("hidden");
+      currentCollectionTweetId = null;
+    };
+    document.getElementById("close-collection-btn")?.addEventListener("click", closeCollectionModal);
+    collectionModal?.addEventListener("click", (e) => {
+      if (e.target === collectionModal)
+        closeCollectionModal();
+    });
+    document.getElementById("save-collection-btn")?.addEventListener("click", () => void handleSaveCollections());
     document.getElementById("disconnect-key-btn")?.addEventListener("click", async () => {
       await logout();
       currentConfig = {
@@ -159,7 +201,10 @@
     chrome.runtime.onMessage.addListener((message) => {
       if (message?.action === "TWEETS_UPDATED") {
         if (message.tweet) {
-          prependOptimisticTweet(message.tweet);
+          const isNew = prependOptimisticTweet(message.tweet, message.serverId);
+          if (isNew && message.serverId && !document.getElementById("dashboard-view")?.classList.contains("hidden")) {
+            void openCollectionPicker(message.serverId);
+          }
         }
         return;
       }
@@ -343,11 +388,14 @@
             return;
           }
           if (response.tweet) {
-            prependOptimisticTweet(response.tweet);
+            prependOptimisticTweet(response.tweet, response.serverId);
           }
           setCaptureOverlayText("Saved");
           void delay(500).then(() => {
             resetCaptureButton();
+            if (response.serverId) {
+              void openCollectionPicker(response.serverId);
+            }
             resolve();
           });
         });
@@ -393,10 +441,10 @@
   function tweetKey(item) {
     return item.id || item.tweetId;
   }
-  function prependOptimisticTweet(tweet) {
+  function prependOptimisticTweet(tweet, serverId) {
     const handle = tweet.author?.username ? `@${tweet.author.username.replace(/^@/, "")}` : "@unknown";
     const optimistic = {
-      id: `local_${tweet.id}`,
+      id: serverId || `local_${tweet.id}`,
       userId: currentConfig.user?.id || "",
       tweetId: tweet.id,
       text: tweet.content?.text || "",
@@ -410,14 +458,16 @@
       metricsReplies: tweet.metrics?.replies || 0,
       isThread: Boolean(tweet.context?.is_reply || tweet.context?.is_quote),
       createdAt: tweet.captured_at || (/* @__PURE__ */ new Date()).toISOString(),
-      savedAt: (/* @__PURE__ */ new Date()).toISOString()
+      savedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      serverId
     };
     if (cachedTweets.some((t) => t.tweetId === optimistic.tweetId))
-      return;
+      return false;
     cachedTweets = [optimistic, ...cachedTweets];
     tweetTotal += 1;
     insertTweetElement(optimistic, true);
     updateTweetCount();
+    return true;
   }
   function insertTweetElement(item, highlight = false) {
     const listEl = document.getElementById("saved-tweets-list");
@@ -446,7 +496,12 @@
         <span class="tweet-author-name">${escapeHtml(author)}</span>
         <span class="tweet-author-handle">${escapeHtml(handle)}</span>
       </div>
-      <span class="tweet-time">${escapeHtml(time)}</span>
+      <div class="tweet-item-actions">
+        <button class="tweet-collect-btn" title="Add to collections" type="button" aria-label="Add to collections">
+          <span class="material-symbols-outlined">folder</span>
+        </button>
+        <span class="tweet-time">${escapeHtml(time)}</span>
+      </div>
     </div>
     <div class="tweet-text">${escapeHtml(text)}</div>
     <div class="tweet-meta">
@@ -458,6 +513,12 @@
     el.addEventListener("click", () => {
       if (item.sourceUrl)
         chrome.tabs.create({ url: item.sourceUrl });
+    });
+    el.querySelector(".tweet-collect-btn")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const serverId = item.serverId || (item.id.startsWith("local_") ? "" : item.id);
+      if (serverId)
+        void openCollectionPicker(serverId, item.collectionIds);
     });
     return el;
   }
@@ -597,6 +658,120 @@
   }
   function escapeHtml(value) {
     return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+  function setCollectionFeedback(msg, type) {
+    const feedback = document.getElementById("collection-feedback");
+    if (!feedback)
+      return;
+    feedback.textContent = msg;
+    feedback.classList.remove("hidden", "success", "error");
+    feedback.classList.add(type);
+  }
+  async function openCollectionPicker(tweetServerId, existingCollectionIds) {
+    const modal = document.getElementById("collection-modal");
+    if (!modal)
+      return;
+    if (currentCollectionTweetId === tweetServerId && !modal.classList.contains("hidden"))
+      return;
+    currentCollectionTweetId = tweetServerId;
+    setCollectionFeedback("", "error");
+    const listEl = document.getElementById("collection-list");
+    const loadingEl = document.getElementById("collection-loading");
+    const emptyEl = document.getElementById("collection-empty");
+    const saveBtn = document.getElementById("save-collection-btn");
+    const saveText = document.getElementById("save-collection-btn-text");
+    if (loadingEl)
+      loadingEl.classList.remove("hidden");
+    if (emptyEl)
+      emptyEl.classList.add("hidden");
+    if (listEl)
+      listEl.innerHTML = "";
+    if (saveText)
+      saveText.textContent = "Add to collections";
+    if (saveBtn)
+      saveBtn.disabled = false;
+    modal.classList.remove("hidden");
+    try {
+      if (cachedCollections.length === 0) {
+        cachedCollections = await getCollections();
+      }
+      if (loadingEl)
+        loadingEl.classList.add("hidden");
+      if (cachedCollections.length === 0) {
+        if (emptyEl) {
+          emptyEl.innerHTML = `
+          <span>No collections yet. Create one to organize your saved tweets.</span>
+          <button id="create-collection-btn" class="link-btn" type="button">
+            <span class="material-symbols-outlined">open_in_new</span>
+            <span>Create in workspace</span>
+          </button>
+        `;
+          emptyEl.classList.remove("hidden");
+          emptyEl.querySelector("#create-collection-btn")?.addEventListener("click", () => {
+            closeCollectionPicker();
+            openWorkspace("/dashboard/collections");
+          });
+        }
+        return;
+      }
+      if (listEl) {
+        const existing = new Set(existingCollectionIds ?? []);
+        listEl.innerHTML = cachedCollections.map(
+          (collection) => {
+            const checked = existing.has(collection.publicId) ? " checked" : "";
+            return `
+              <label class="collection-option">
+                <input type="checkbox" value="${escapeHtml(collection.publicId)}"${checked}/>
+                <span class="collection-option-name">${escapeHtml(collection.name)}</span>
+                <span class="collection-option-count">${Number(collection.tweetCount) || 0}</span>
+              </label>
+            `;
+          }
+        ).join("");
+      }
+    } catch (err) {
+      if (loadingEl)
+        loadingEl.classList.add("hidden");
+      const message = err instanceof Error ? err.message : "Something went wrong";
+      setCollectionFeedback(`Couldn\u2019t load collections. ${message}`, "error");
+    }
+  }
+  function closeCollectionPicker() {
+    document.getElementById("collection-modal")?.classList.add("hidden");
+    currentCollectionTweetId = null;
+  }
+  async function handleSaveCollections() {
+    const saveBtn = document.getElementById("save-collection-btn");
+    const saveText = document.getElementById("save-collection-btn-text");
+    if (!currentCollectionTweetId || !saveBtn)
+      return;
+    const checked = Array.from(
+      document.querySelectorAll('#collection-list input[type="checkbox"]:checked')
+    ).map((input) => input.value.trim()).filter(Boolean);
+    if (checked.length === 0) {
+      setCollectionFeedback("Select at least one collection.", "error");
+      return;
+    }
+    const previousText = saveText?.textContent || "Add to collections";
+    if (saveText)
+      saveText.textContent = "Adding\u2026";
+    saveBtn.disabled = true;
+    try {
+      await addTweetToCollections(currentCollectionTweetId, checked);
+      setCollectionFeedback(
+        `Added to ${checked.length} collection${checked.length > 1 ? "s" : ""}.`,
+        "success"
+      );
+      await delay(900);
+      closeCollectionPicker();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Something went wrong";
+      setCollectionFeedback(`Failed to add. ${message}`, "error");
+    } finally {
+      if (saveText)
+        saveText.textContent = previousText;
+      saveBtn.disabled = false;
+    }
   }
   function updateModalDetails() {
     const identityEl = document.getElementById("modal-identity");

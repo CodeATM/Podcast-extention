@@ -103,6 +103,25 @@ export interface BackendTweetItem {
   isThread: boolean;
   createdAt: string;
   savedAt: string;
+  /** Server-side tweet id from `POST /api/extension/save-content`, when known. */
+  serverId?: string;
+  /** Collections the tweet already belongs to (`publicId`s), when provided. */
+  collectionIds?: string[];
+}
+
+/** A collection as returned by the backend `GET /api/collections`. */
+export interface CollectionSummary {
+  id: string;
+  publicId: string;
+  userId: string;
+  name: string;
+  description?: string | null;
+  status: string;
+  coverType?: string | null;
+  coverValue?: string | null;
+  tweetCount: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface TweetListResult {
@@ -124,7 +143,7 @@ export type BackgroundMessage =
   | { action: 'SET_BACKEND_URL'; backendUrl: string }
   | { action: 'API_SAVE_CONTENT'; tweet: TweetData }
   | { action: 'API_FETCH'; path: string; method?: string; body?: unknown }
-  | { action: 'TWEETS_UPDATED' };
+  | { action: 'TWEETS_UPDATED'; tweet?: TweetData; serverId?: string };
 
 export type BackgroundResponse =
   | { success: true; data?: unknown; config?: SonaraConfig; authenticated?: boolean }

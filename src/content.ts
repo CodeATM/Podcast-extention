@@ -161,14 +161,14 @@ async function handleTweetClick(btn: HTMLButtonElement): Promise<void> {
     const tweetData = extractTweetData(tweetArticle);
     const saved = await syncTweetToBackend(tweetData);
 
-    if (!saved) {
+    if (!saved.ok) {
       btn.innerHTML = MIC_ICON;
       btn.classList.remove('t2p-busy');
       showToast('Couldn’t save tweet. Check your connection and try again.', true);
       return;
     }
 
-    notifyTweetsUpdated(tweetData);
+    notifyTweetsUpdated(tweetData, saved.serverId);
     showToast('Tweet saved');
 
     btn.innerHTML = CHECK_ICON;
@@ -254,7 +254,7 @@ function parseMetric(el: Element | null): number {
   return Math.round(val);
 }
 
-async function syncTweetToBackend(tweetData: TweetData): Promise<boolean> {
+async function syncTweetToBackend(tweetData: TweetData): Promise<{ ok: boolean; serverId?: string }> {
   return new Promise((resolve) => {
     // Protected API calls go through the background service worker only.
     chrome.runtime.sendMessage(
@@ -262,23 +262,24 @@ async function syncTweetToBackend(tweetData: TweetData): Promise<boolean> {
       (response) => {
         if (chrome.runtime.lastError) {
           console.warn('Background sync notice:', chrome.runtime.lastError.message);
-          resolve(false);
+          resolve({ ok: false });
           return;
         }
         if (!response?.success) {
           console.warn('Background sync notice:', response?.error || 'sync failed');
-          resolve(false);
+          resolve({ ok: false });
           return;
         }
-        resolve(true);
+        const data = (response.data ?? {}) as { id?: string };
+        resolve({ ok: true, serverId: typeof data.id === 'string' ? data.id : undefined });
       }
     );
   });
 }
 
-function notifyTweetsUpdated(tweet?: TweetData): void {
+function notifyTweetsUpdated(tweet?: TweetData, serverId?: string): void {
   try {
-    chrome.runtime.sendMessage({ action: 'TWEETS_UPDATED', tweet }, () => void chrome.runtime.lastError);
+    chrome.runtime.sendMessage({ action: 'TWEETS_UPDATED', tweet, serverId }, () => void chrome.runtime.lastError);
   } catch {
     // Non-fatal: the panel refreshes on open anyway.
   }
@@ -302,9 +303,9 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     if (mainTweet) {
       const data = extractTweetData(mainTweet);
       syncTweetToBackend(data).then((saved) => {
-        if (saved) {
-          notifyTweetsUpdated(data);
-          sendResponse({ success: true, tweet: data });
+        if (saved.ok) {
+          notifyTweetsUpdated(data, saved.serverId);
+          sendResponse({ success: true, tweet: data, serverId: saved.serverId });
         } else {
           sendResponse({ success: false, error: 'Backend sync failed. Sign in first and try again.' });
         }

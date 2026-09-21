@@ -1,4 +1,4 @@
-import type { BackgroundMessage, BackgroundResponse, SonaraConfig, TweetData, BackendSyncResponse, TweetListResult } from './types';
+import type { BackgroundMessage, BackgroundResponse, SonaraConfig, TweetData, BackendSyncResponse, TweetListResult, CollectionSummary } from './types';
 import { DEFAULT_BACKEND_URL } from './auth/storage';
 
 export { DEFAULT_BACKEND_URL };
@@ -83,6 +83,47 @@ export async function getSavedTweets(): Promise<TweetListResult> {
       totalPages: Number(paginationRaw.totalPages) || 1,
     },
   };
+}
+
+/**
+ * Load collections from the backend (`GET /api/collections`). Throws with
+ * `code = 'UNAUTHENTICATED'` when the session is missing/expired.
+ */
+export async function getCollections(): Promise<CollectionSummary[]> {
+  const response = await sendToBackground({
+    action: 'API_FETCH',
+    path: '/api/collections?limit=50&sort=alpha',
+    method: 'GET',
+  });
+  if (!response.success) {
+    const err = new Error(response.error || 'Failed to load collections');
+    (err as { code?: string }).code = response.code;
+    throw err;
+  }
+
+  const body = (response.data ?? {}) as Record<string, unknown>;
+  const payload = (body.data && typeof body.data === 'object' ? body.data : body) as Record<string, unknown>;
+  const rawItems = payload.items ?? body.items;
+  return Array.isArray(rawItems) ? (rawItems as CollectionSummary[]) : [];
+}
+
+/**
+ * Add a saved tweet to one or more collections (`POST /api/tweets/:id/collections`).
+ * `collectionIds` are the collections' `publicId` values. Throws with
+ * `code = 'UNAUTHENTICATED'` when the session is missing/expired.
+ */
+export async function addTweetToCollections(tweetServerId: string, collectionIds: string[]): Promise<void> {
+  const response = await sendToBackground({
+    action: 'API_FETCH',
+    path: `/api/tweets/${encodeURIComponent(tweetServerId)}/collections`,
+    method: 'POST',
+    body: { collectionIds },
+  });
+  if (!response.success) {
+    const err = new Error(response.error || 'Failed to add tweet to collections');
+    (err as { code?: string }).code = response.code;
+    throw err;
+  }
 }
 
 /**

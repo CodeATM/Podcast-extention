@@ -191,6 +191,33 @@
       </div>
     </div>
 
+  <!-- ADD TO COLLECTIONS MODAL -->
+    <div id="collection-modal" class="modal-overlay hidden">
+      <div class="modal">
+        <div class="modal-header">
+          <h4>Add to collections</h4>
+          <button id="close-collection-btn" class="icon-btn" type="button">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p id="collection-context" class="collection-context">Save this tweet to a collection to reuse it later.</p>
+          <div id="collection-list" class="collection-list">
+            <div id="collection-loading" class="collection-loading hidden">
+              <div class="loader-ring small" aria-hidden="true"></div>
+              <span>Loading collections…</span>
+            </div>
+            <div id="collection-empty" class="collection-empty hidden"></div>
+          </div>
+          <div id="collection-feedback" class="feedback hidden"></div>
+          <button id="save-collection-btn" class="btn-primary" type="button">
+            <span class="material-symbols-outlined">folder</span>
+            <span id="save-collection-btn-text">Add to collections</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
   </main>
 
   <script src="sidepanel.js"></script>
