@@ -15,6 +15,7 @@ const filesToInclude = [
     'sidepanel.css',
     'styles.css',
     'logo.png',
+    'logo-white.png',
     'README.md',
     'PRIVACY.md',
     'icons/icon16.png',
