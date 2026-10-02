@@ -31,9 +31,18 @@ let tweetTotal = 0;
 let cachedCollections: CollectionSummary[] = [];
 let currentCollectionTweetId: string | null = null;
 
+/**
+ * How often the panel silently re-fetches the saved tweet list.
+ *
+ * Matches the dashboard's live-refresh cadence so a tweet captured from x.com
+ * shows up in both places at the same moment.
+ */
+const LIVE_REFRESH_INTERVAL_MS = 10_000;
+
 async function initPanel(): Promise<void> {
   setupEventListeners();
   registerTabListeners();
+  startLiveRefresh();
 
   // Fire-and-forget: warms a spun-down Render instance in the background while
   // the panel renders. Deliberately not awaited.
@@ -51,6 +60,59 @@ async function initPanel(): Promise<void> {
   } catch {
     showSetupView();
   }
+}
+
+/**
+ * Keep the saved-tweets list current without a manual refresh.
+ *
+ * A tweet can be added from x.com while this panel is open — either by the
+ * in-page capture button or from another tab — and the panel previously only
+ * showed that after reopening it or hitting refresh.
+ *
+ * Polling pauses while the document is hidden and catches up immediately on
+ * return, so an idle panel costs nothing. `silent` mode means no spinner and no
+ * skeleton flash; `loadSavedTweets` also refuses to clobber an in-flight
+ * request, so overlapping ticks are safe.
+ */
+function startLiveRefresh(): void {
+  let timer: ReturnType<typeof setInterval> | null = null;
+
+  const stop = () => {
+    if (timer !== null) {
+      clearInterval(timer);
+      timer = null;
+    }
+  };
+
+  const tick = () => {
+    // Nothing to sync while signed out, and polling would just 401 every tick.
+    if (!currentConfig.authenticated) return;
+    // Never poll while signed out or while the setup view is showing.
+    if (document.getElementById('setup-view') && !document.getElementById('setup-view')?.classList.contains('hidden')) return;
+    void loadSavedTweets('silent');
+  };
+
+  const start = () => {
+    stop();
+    if (document.visibilityState !== 'visible') return;
+    timer = setInterval(tick, LIVE_REFRESH_INTERVAL_MS);
+  };
+
+  const onWake = () => {
+    if (document.visibilityState !== 'visible') {
+      stop();
+      return;
+    }
+    tick();
+    start();
+  };
+
+  start();
+  document.addEventListener('visibilitychange', onWake);
+  window.addEventListener('online', onWake);
+
+  // A side panel can stay mounted for a long time; never leave the timer behind.
+  window.addEventListener('pagehide', stop, { once: true });
 }
 
 function workspaceUrl(path = '/'): string {
@@ -576,10 +638,18 @@ function mergeSilent(items: BackendTweetItem[], total: number): void {
   });
 }
 
+/**
+ * @param mode `full` shows skeletons and a spinner (explicit user refresh);
+ * `silent` is for background ticks and leaves the visible list untouched
+ * unless the server data actually differs.
+ */
 async function loadSavedTweets(mode: 'full' | 'silent' = 'full'): Promise<void> {
   const listEl = document.getElementById('saved-tweets-list');
   const refreshBtn = document.getElementById('refresh-btn');
   if (!listEl || tweetsLoading) return;
+  // A live tick must never trigger the unauthenticated teardown; an explicit
+  // refresh still does, so a genuinely dead session surfaces when asked for.
+  if (mode === 'silent' && !currentConfig.authenticated) return;
 
   tweetsLoading = true;
   if (mode === 'full') {

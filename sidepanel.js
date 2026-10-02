@@ -123,9 +123,11 @@
   var tweetTotal = 0;
   var cachedCollections = [];
   var currentCollectionTweetId = null;
+  var LIVE_REFRESH_INTERVAL_MS = 1e4;
   async function initPanel() {
     setupEventListeners();
     registerTabListeners();
+    startLiveRefresh();
     warmBackendConnection();
     try {
       currentConfig = await getSonaraConfig();
@@ -138,6 +140,40 @@
     } catch {
       showSetupView();
     }
+  }
+  function startLiveRefresh() {
+    let timer = null;
+    const stop = () => {
+      if (timer !== null) {
+        clearInterval(timer);
+        timer = null;
+      }
+    };
+    const tick = () => {
+      if (!currentConfig.authenticated)
+        return;
+      if (document.getElementById("setup-view") && !document.getElementById("setup-view")?.classList.contains("hidden"))
+        return;
+      void loadSavedTweets("silent");
+    };
+    const start = () => {
+      stop();
+      if (document.visibilityState !== "visible")
+        return;
+      timer = setInterval(tick, LIVE_REFRESH_INTERVAL_MS);
+    };
+    const onWake = () => {
+      if (document.visibilityState !== "visible") {
+        stop();
+        return;
+      }
+      tick();
+      start();
+    };
+    start();
+    document.addEventListener("visibilitychange", onWake);
+    window.addEventListener("online", onWake);
+    window.addEventListener("pagehide", stop, { once: true });
   }
   function workspaceUrl(path = "/") {
     const base = (currentConfig.backendUrl || DEFAULT_BACKEND_URL).replace(/\/+$/, "");
@@ -613,6 +649,8 @@
     const listEl = document.getElementById("saved-tweets-list");
     const refreshBtn = document.getElementById("refresh-btn");
     if (!listEl || tweetsLoading)
+      return;
+    if (mode === "silent" && !currentConfig.authenticated)
       return;
     tweetsLoading = true;
     if (mode === "full") {
