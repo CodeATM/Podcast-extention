@@ -33,6 +33,8 @@ const REFRESH_ALARM_NAME = 'session-refresh';
 const ACCESS_TOKEN_TTL_MS = 15 * 60 * 1000;
 const REFRESH_MARGIN_MS = 2 * 60 * 1000;
 const REFRESH_CHECK_PERIOD_MINUTES = 5;
+/** Safety valve for the fire-and-forget wake-up ping — see `warmBackendConnection`. */
+const WARMUP_TIMEOUT_MS = 60 * 1000;
 
 function apiError(error: string, code?: string): BackgroundResponse {
   return { success: false, error, code };
@@ -489,6 +491,33 @@ async function saveContent(tweet: TweetData): Promise<BackgroundResponse> {
   }
 }
 
+/**
+ * Fire-and-forget liveness ping. The backend may be a Render instance that has
+ * spun down: this opens the connection so it starts waking while the user is
+ * still looking at the panel, before the first real request needs it.
+ *
+ * Deliberately unauthenticated, and deliberately never awaited — a cold start
+ * takes far longer than any UI would tolerate blocking on. Callers must not
+ * depend on the response.
+ */
+function warmBackendConnection(): void {
+  void (async () => {
+    try {
+      const backendUrl = await getBackendUrl();
+      await fetch(`${backendUrl}/health`, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        // Only a safety valve against a promise that never settles. It has to
+        // outlast a cold start, since aborting mid-boot achieves nothing.
+        signal: AbortSignal.timeout(WARMUP_TIMEOUT_MS),
+      });
+    } catch {
+      // Offline, wrong URL, or still booting. The request was delivered, which
+      // is all this ping needs to do — there is no failure state to report.
+    }
+  })();
+}
+
 async function handleMessage(message: BackgroundMessage): Promise<BackgroundResponse> {
   switch (message.action) {
     case 'AUTH_LOGIN':
@@ -506,6 +535,10 @@ async function handleMessage(message: BackgroundMessage): Promise<BackgroundResp
     }
     case 'API_SAVE_CONTENT':
       return saveContent(message.tweet);
+    case 'API_HEALTH':
+      // Reply immediately — the panel is not waiting on the ping.
+      warmBackendConnection();
+      return { success: true };
     case 'API_FETCH': {
       try {
         const response = await authenticatedFetch(message.path, message.method || 'GET', message.body);

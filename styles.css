@@ -1,4 +1,34 @@
-/* Perfect Twitter Button Alignment */
+/* ─────────────────────────────────────────────────────────────────────
+   Sonara injected styles (x.com / twitter.com capture button + modal).
+
+   Theme tokens mirror the Sonara dashboard (Sonara/styles/globals.css).
+   Tokens are prefixed `t2p-` because this stylesheet is injected into the
+   host page and must never collide with x.com's own custom properties.
+
+   The modal follows the host page's colour scheme via prefers-color-scheme,
+   so every rule below is written once against tokens and the dark palette
+   is a single override block at the bottom.
+   ───────────────────────────────────────────────────────────────────── */
+:root {
+  --t2p-bg: #ffffff;                          /* background / card / popover */
+  --t2p-fg: #171717;                          /* foreground */
+  --t2p-muted: #f4f4f5;                       /* secondary / muted / accent */
+  --t2p-muted-fg: #52525b;                    /* muted-foreground */
+  --t2p-primary: #0d74ce;                     /* primary / ring */
+  --t2p-success: #10b981;                     /* success */
+  --t2p-border: rgba(23, 23, 23, 0.08);       /* border / input */
+  --t2p-strong-border: rgba(23, 23, 23, 0.14);
+  --t2p-accent-soft: rgba(13, 116, 206, 0.12);
+
+  --t2p-radius-sm: 8px;                       /* Sonara --radius-sm/md */
+  --t2p-radius-lg: 12px;                      /* Sonara --radius-lg */
+  --t2p-radius-full: 9999px;
+}
+
+/* ── Capture button ─────────────────────────────────────────────────── */
+
+/* Base colour is x.com's own action-icon grey on purpose: the button has to
+   blend into the native action bar. Only hover/focus carry the brand. */
 .t2p-button {
   display: inline-flex;
   align-items: center;
@@ -6,7 +36,7 @@
   min-width: 34.75px;
   min-height: 34.75px;
   padding: 0;
-  border-radius: 9999px;
+  border-radius: var(--t2p-radius-full);
   border: none;
   background-color: transparent;
   cursor: pointer;
@@ -24,13 +54,13 @@
 }
 
 .t2p-button:hover {
-  background-color: rgba(99, 102, 241, 0.1);
-  color: rgb(99, 102, 241);
+  background-color: var(--t2p-accent-soft);
+  color: var(--t2p-primary);
   transform: scale(1.05);
 }
 
 .t2p-button:focus-visible {
-  outline: 2px solid rgb(99, 102, 241);
+  outline: 2px solid var(--t2p-primary);
   outline-offset: 2px;
 }
 
@@ -48,18 +78,18 @@
 }
 
 .t2p-button.t2p-added {
-  color: rgb(34, 197, 94);
-  background-color: rgba(34, 197, 94, 0.1);
+  color: var(--t2p-success);
+  background-color: color-mix(in srgb, var(--t2p-success) 10%, transparent);
 }
 
 .t2p-button.t2p-added:hover {
-  background-color: rgba(34, 197, 94, 0.2);
+  background-color: color-mix(in srgb, var(--t2p-success) 20%, transparent);
 }
 
 .t2p-button.t2p-busy {
   pointer-events: none;
   opacity: 0.85;
-  color: rgb(139, 92, 246);
+  color: var(--t2p-primary);
 }
 
 .t2p-button .t2p-spin {
@@ -70,7 +100,8 @@
   to { transform: rotate(360deg); }
 }
 
-/* Shadcn-like Modal Styling */
+/* ── Modal ──────────────────────────────────────────────────────────── */
+
 .t2p-modal-overlay {
   position: fixed;
   top: 0;
@@ -92,26 +123,26 @@
 }
 
 @keyframes slideUp {
-  from { 
+  from {
     opacity: 0;
     transform: translateY(16px) scale(0.95);
   }
-  to { 
+  to {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
 }
 
 .t2p-modal {
-  background: hsl(0 0% 100%);
-  border: 1px solid hsl(214.3 31.8% 91.4%);
-  border-radius: 12px;
+  background: var(--t2p-bg);
+  border: 1px solid var(--t2p-border);
+  border-radius: var(--t2p-radius-lg);
   padding: 24px;
   width: 480px;
   max-width: 95vw;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 
+  box-shadow:
     0 10px 15px -3px rgba(0, 0, 0, 0.1),
     0 4px 6px -2px rgba(0, 0, 0, 0.05);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -123,7 +154,7 @@
   font-size: 18px;
   font-weight: 600;
   margin: 0 0 16px 0;
-  color: hsl(222.2 84% 4.9%);
+  color: var(--t2p-fg);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -136,7 +167,7 @@
 
 .t2p-modal p {
   font-size: 14px;
-  color: hsl(215.4 16.3% 46.9%);
+  color: var(--t2p-muted-fg);
   margin: 0 0 20px 0;
   line-height: 1.5;
 }
@@ -144,34 +175,35 @@
 .t2p-type-badge {
   display: inline-flex;
   align-items: center;
-  border-radius: 6px;
-  border: 1px solid hsl(214.3 31.8% 91.4%);
-  background: hsl(210 40% 98%);
+  border-radius: var(--t2p-radius-sm);
+  border: 1px solid var(--t2p-border);
+  background: var(--t2p-muted);
   padding: 2px 8px;
   font-size: 12px;
   font-weight: 500;
-  color: hsl(222.2 84% 4.9%);
+  color: var(--t2p-fg);
 }
 
 .t2p-context-info {
   font-size: 12px;
-  color: hsl(215.4 16.3% 46.9%);
+  color: var(--t2p-muted-fg);
   font-weight: 500;
 }
 
 .t2p-auto-info {
   font-size: 12px;
-  color: hsl(142.1 76.2% 36.3%);
+  color: var(--t2p-success);
   font-weight: 600;
 }
 
-/* Tweet Preview Card */
+/* ── Tweet preview ──────────────────────────────────────────────────── */
+
 .t2p-tweet-preview {
-  border: 1px solid hsl(214.3 31.8% 91.4%);
-  border-radius: 8px;
+  border: 1px solid var(--t2p-border);
+  border-radius: var(--t2p-radius-sm);
   padding: 16px;
   margin: 16px 0 20px 0;
-  background: hsl(210 40% 98%);
+  background: var(--t2p-muted);
 }
 
 .t2p-tweet-header {
@@ -189,20 +221,20 @@
 .t2p-display-name {
   font-weight: 600;
   font-size: 14px;
-  color: hsl(222.2 84% 4.9%);
+  color: var(--t2p-fg);
   line-height: 1.4;
 }
 
 .t2p-username {
   font-size: 13px;
-  color: hsl(215.4 16.3% 46.9%);
+  color: var(--t2p-muted-fg);
   line-height: 1.4;
 }
 
 .t2p-tweet-content {
   font-size: 14px;
   line-height: 1.5;
-  color: hsl(222.2 84% 4.9%);
+  color: var(--t2p-fg);
   word-wrap: break-word;
   white-space: pre-wrap;
   margin-bottom: 12px;
@@ -212,7 +244,7 @@
   display: flex;
   gap: 12px;
   font-size: 12px;
-  color: hsl(215.4 16.3% 46.9%);
+  color: var(--t2p-muted-fg);
   margin-bottom: 8px;
 }
 
@@ -225,9 +257,9 @@
 .t2p-quoted-preview {
   margin: 12px 0;
   padding: 12px;
-  border: 1px solid hsl(214.3 31.8% 91.4%);
-  border-radius: 6px;
-  background: hsl(210 40% 99%);
+  border: 1px solid var(--t2p-border);
+  border-radius: var(--t2p-radius-sm);
+  background: var(--t2p-bg);
 }
 
 .t2p-quoted-header {
@@ -240,7 +272,7 @@
 .t2p-quoted-label {
   font-size: 11px;
   font-weight: 600;
-  color: hsl(215.4 16.3% 46.9%);
+  color: var(--t2p-muted-fg);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -248,22 +280,24 @@
 .t2p-quoted-author {
   font-size: 12px;
   font-weight: 500;
-  color: hsl(222.2 84% 4.9%);
+  color: var(--t2p-fg);
 }
 
 .t2p-quoted-content {
   font-size: 13px;
   line-height: 1.4;
-  color: hsl(222.2 84% 4.9%);
+  color: var(--t2p-fg);
   margin-bottom: 6px;
 }
 
 .t2p-quoted-media {
   font-size: 11px;
-  color: hsl(215.4 16.3% 46.9%);
+  color: var(--t2p-muted-fg);
   font-style: italic;
 }
-/* Options */
+
+/* ── Options ────────────────────────────────────────────────────────── */
+
 .t2p-options {
   display: flex;
   flex-direction: column;
@@ -277,10 +311,10 @@
   align-items: flex-start;
   gap: 4px;
   padding: 12px 16px;
-  border-radius: 8px;
-  border: 1px solid hsl(214.3 31.8% 91.4%);
-  background: hsl(0 0% 100%);
-  color: hsl(222.2 84% 4.9%);
+  border-radius: var(--t2p-radius-sm);
+  border: 1px solid var(--t2p-border);
+  background: var(--t2p-bg);
+  color: var(--t2p-fg);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -291,8 +325,8 @@
 }
 
 .t2p-option-btn:hover {
-  border-color: hsl(221.2 83.2% 53.3%);
-  background: hsl(221.2 83.2% 53.3% / 0.04);
+  border-color: var(--t2p-primary);
+  background: var(--t2p-accent-soft);
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
@@ -303,12 +337,12 @@
 
 .t2p-option-text {
   font-weight: 500;
-  color: hsl(222.2 84% 4.9%);
+  color: var(--t2p-fg);
 }
 
 .t2p-option-desc {
   font-size: 12px;
-  color: hsl(215.4 16.3% 46.9%);
+  color: var(--t2p-muted-fg);
   line-height: 1.4;
 }
 
@@ -316,22 +350,23 @@
   width: 100%;
   padding: 10px 16px;
   background: transparent;
-  border: 1px solid hsl(214.3 31.8% 91.4%);
-  color: hsl(215.4 16.3% 46.9%);
+  border: 1px solid var(--t2p-border);
+  color: var(--t2p-muted-fg);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: var(--t2p-radius-sm);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .t2p-cancel-btn:hover {
-  background: hsl(210 40% 98%);
-  border-color: hsl(215.3 19.3% 34.5%);
-  color: hsl(215.3 19.3% 34.5%);
+  background: var(--t2p-muted);
+  border-color: var(--t2p-strong-border);
+  color: var(--t2p-fg);
 }
 
-/* Success Animation */
+/* ── Success animation ──────────────────────────────────────────────── */
+
 @keyframes success {
   0% { transform: scale(1); }
   50% { transform: scale(1.2); }
@@ -342,110 +377,25 @@
   animation: success 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Dark mode support */
+/* ── Dark palette (Sonara `.dark` tokens) ─────────────────────────────
+   Every rule above is colour-scheme agnostic, so dark mode is just the
+   token swap. */
 @media (prefers-color-scheme: dark) {
-    .t2p-modal {
-        background: hsl(222.2 84% 4.9%);
-        border-color: hsl(217.2 32.6% 17.5%);
-        box-shadow: 
-            0 10px 15px -3px rgba(0, 0, 0, 0.3),
-            0 4px 6px -2px rgba(0, 0, 0, 0.1);
-    }
-    
-    .t2p-modal h2 {
-        color: hsl(210 40% 98%);
-    }
-    
-    .t2p-modal p {
-        color: hsl(215 20.2% 65.1%);
-    }
-    
-    .t2p-type-badge {
-        background: hsl(217.2 32.6% 17.5%);
-        border-color: hsl(217.2 32.6% 17.5%);
-        color: hsl(210 40% 98%);
-    }
-    
-    .t2p-context-info {
-        color: hsl(215 20.2% 65.1%);
-    }
-    
-    .t2p-auto-info {
-        color: hsl(142.1 76.2% 36.3%);
-    }
-    
-    .t2p-tweet-preview {
-        background: hsl(217.2 32.6% 17.5%);
-        border-color: hsl(217.2 32.6% 17.5%);
-    }
-    
-    .t2p-display-name {
-        color: hsl(210 40% 98%);
-    }
-    
-    .t2p-username {
-        color: hsl(215 20.2% 65.1%);
-    }
-    
-    .t2p-tweet-content {
-        color: hsl(210 40% 98%);
-    }
-    
-    .t2p-tweet-metrics {
-        color: hsl(215 20.2% 65.1%);
-    }
-    
-    .t2p-quoted-preview {
-        background: hsl(217.2 32.6% 17.5%);
-        border-color: hsl(217.2 32.6% 17.5%);
-    }
-    
-    .t2p-quoted-label {
-        color: hsl(215 20.2% 65.1%);
-    }
-    
-    .t2p-quoted-author,
-    .t2p-quoted-content {
-        color: hsl(210 40% 98%);
-    }
-    
-    .t2p-quoted-media {
-        color: hsl(215 20.2% 65.1%);
-    }
-    
-    .t2p-option-btn {
-        background: hsl(217.2 32.6% 17.5%);
-        border-color: hsl(217.2 32.6% 17.5%);
-        color: hsl(210 40% 98%);
-    }
-    
-    .t2p-option-btn:hover {
-        background: hsl(217.2 32.6% 17.5% / 0.8);
-        border-color: hsl(221.2 83.2% 53.3%);
-    }
-    
-    .t2p-option-text {
-        color: hsl(210 40% 98%);
-    }
-    
-    .t2p-option-desc {
-        color: hsl(215 20.2% 65.1%);
-    }
-    
-    .t2p-cancel-btn {
-        background: transparent;
-        border-color: hsl(217.2 32.6% 17.5%);
-        color: hsl(215 20.2% 65.1%);
-    }
-    
-    .t2p-cancel-btn:hover {
-        background: hsl(217.2 32.6% 17.5%);
-        border-color: hsl(215 20.2% 65.1%);
-        color: hsl(210 40% 98%);
-    }
+  :root {
+    --t2p-bg: #111111;
+    --t2p-fg: #fafafa;
+    --t2p-muted: #171717;
+    --t2p-muted-fg: #a1a1aa;
+    --t2p-primary: #4da3e8;
+    --t2p-success: #34d399;
+    --t2p-border: rgba(255, 255, 255, 0.08);
+    --t2p-strong-border: rgba(255, 255, 255, 0.14);
+    --t2p-accent-soft: rgba(77, 163, 232, 0.16);
+  }
 }
 
-/* Mobile responsiveness */
+/* ── Mobile responsiveness ──────────────────────────────────────────── */
+
 @media (max-width: 640px) {
     .t2p-modal {
         width: 95vw;
@@ -453,20 +403,20 @@
         margin: 20px;
         max-height: 85vh;
     }
-    
+
     .t2p-modal h2 {
         font-size: 16px;
     }
-    
+
     .t2p-tweet-header {
         gap: 8px;
     }
-    
+
     .t2p-avatar {
         width: 32px;
         height: 32px;
     }
-    
+
     .t2p-option-btn {
         padding: 10px 12px;
     }

@@ -128,6 +128,7 @@
   var ACCESS_TOKEN_TTL_MS = 15 * 60 * 1e3;
   var REFRESH_MARGIN_MS = 2 * 60 * 1e3;
   var REFRESH_CHECK_PERIOD_MINUTES = 5;
+  var WARMUP_TIMEOUT_MS = 60 * 1e3;
   function apiError(error, code) {
     return { success: false, error, code };
   }
@@ -486,6 +487,21 @@
       return apiError(err?.message || "Network request failed", err?.code);
     }
   }
+  function warmBackendConnection() {
+    void (async () => {
+      try {
+        const backendUrl = await getBackendUrl();
+        await fetch(`${backendUrl}/health`, {
+          method: "GET",
+          headers: { Accept: "application/json" },
+          // Only a safety valve against a promise that never settles. It has to
+          // outlast a cold start, since aborting mid-boot achieves nothing.
+          signal: AbortSignal.timeout(WARMUP_TIMEOUT_MS)
+        });
+      } catch {
+      }
+    })();
+  }
   async function handleMessage(message) {
     switch (message.action) {
       case "AUTH_LOGIN":
@@ -503,6 +519,9 @@
       }
       case "API_SAVE_CONTENT":
         return saveContent(message.tweet);
+      case "API_HEALTH":
+        warmBackendConnection();
+        return { success: true };
       case "API_FETCH": {
         try {
           const response = await authenticatedFetch(message.path, message.method || "GET", message.body);

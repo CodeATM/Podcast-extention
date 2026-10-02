@@ -1,20 +1,48 @@
+/* ─────────────────────────────────────────────────────────────────────
+   Theme tokens — mirrors the Sonara dashboard (Sonara/styles/globals.css
+   `.dark` block). The panel is dark-only, so only the dark values live
+   here. Keep in sync when the dashboard palette changes.
+
+   --accent*      → --primary / --ring / --accent-foreground / --accent-soft
+   --bg*          → --background / --card / --muted / --secondary / --sidebar-background
+   --text*        → --foreground / --muted-foreground
+   ───────────────────────────────────────────────────────────────────── */
 :root {
-  --bg: #0b0b0d;
-  --bg-elevated: #141417;
-  --bg-soft: #1b1b20;
-  --bg-hover: #232329;
+  /* Surfaces (Sonara: background / card / muted / accent) */
+  --bg: #0a0a0a;
+  --bg-elevated: #111111;
+  --bg-soft: #171717;
+  --bg-hover: #1f1f23;
+
+  /* Borders (Sonara: border / strong-border) */
   --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.14);
-  --text: #f4f4f5;
+
+  /* Text (Sonara: foreground / muted-foreground) */
+  --text: #fafafa;
   --text-secondary: #a1a1aa;
   --text-muted: #71717a;
-  --accent: #a78bfa;
-  --accent-strong: #8b5cf6;
-  --accent-soft: rgba(139, 92, 246, 0.16);
+
+  /* Brand (Sonara: primary / ring / accent-foreground / accent-soft) */
+  --accent: #4da3e8;
+  --accent-foreground: #7dc4f5;
+  --accent-strong: #4da3e8;
+  --accent-strong-hover: #3d8ed6;
+  --accent-soft: rgba(77, 163, 232, 0.16);
+  --primary-contrast: #0a0a0a;
+
+  /* Status (Sonara: success / destructive) */
   --success: #34d399;
   --error: #f87171;
+
   --font: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --radius: 12px;
+
+  /* Radii (Sonara: --radius-sm/md/lg/xl/full) */
+  --radius-sm: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -42,7 +70,7 @@ html, body {
 *::-webkit-scrollbar { width: 4px; }
 *::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.12);
-  border-radius: 4px;
+  border-radius: var(--radius-full);
 }
 
 .hidden { display: none !important; }
@@ -138,7 +166,7 @@ main.panel {
   justify-content: space-between;
   gap: 10px;
   padding: 12px 14px;
-  background: #101014;
+  background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
 }
 
@@ -166,7 +194,7 @@ main.panel {
 .avatar-btn {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-secondary);
@@ -198,7 +226,7 @@ main.panel {
   justify-content: center;
   padding: 24px 18px 32px;
   background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(139, 92, 246, 0.12), transparent 60%),
+    radial-gradient(ellipse 80% 50% at 50% -10%, var(--accent-soft), transparent 60%),
     var(--bg);
 }
 
@@ -256,7 +284,7 @@ input[type="url"] {
   width: 100%;
   background: var(--bg-soft);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   padding: 11px 12px 11px 40px;
   color: var(--text);
   font-size: 14px;
@@ -279,16 +307,16 @@ input:focus {
   text-align: center;
   font-weight: 600;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   animation: fadeInUp 0.25s var(--ease);
 }
 .feedback.error {
   color: var(--error);
-  background: rgba(248, 113, 113, 0.1);
+  background: color-mix(in srgb, var(--error) 10%, transparent);
 }
 .feedback.success {
   color: var(--success);
-  background: rgba(52, 211, 153, 0.1);
+  background: color-mix(in srgb, var(--success) 10%, transparent);
 }
 
 .auth-divider {
@@ -316,7 +344,7 @@ input:focus {
   background: var(--bg-soft);
   color: var(--text);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   font-family: var(--font);
   font-weight: 600;
   font-size: 14px;
@@ -351,7 +379,7 @@ input:focus {
   border: none;
   padding: 0;
   margin: 0;
-  color: var(--accent);
+  color: var(--accent-foreground);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -363,9 +391,9 @@ input:focus {
 /* ── Buttons ──────────────────────────────────────────────────────────── */
 .btn-primary {
   background: var(--accent-strong);
-  color: #fff;
+  color: var(--primary-contrast);
   border: none;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   font-family: var(--font);
   font-weight: 600;
   font-size: 14px;
@@ -379,7 +407,7 @@ input:focus {
   margin-top: 8px;
 }
 .btn-primary:hover:not(:disabled) {
-  background: #7c3aed;
+  background: var(--accent-strong-hover);
 }
 .btn-primary:active:not(:disabled) {
   transform: scale(0.985);
@@ -396,9 +424,9 @@ input:focus {
 .btn-spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  border-top-color: #fff;
-  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--primary-contrast) 35%, transparent);
+  border-top-color: var(--primary-contrast);
+  border-radius: var(--radius-full);
   animation: spin 0.7s linear infinite;
   flex-shrink: 0;
 }
@@ -406,9 +434,9 @@ input:focus {
 .btn-danger {
   width: 100%;
   padding: 11px;
-  background: rgba(248, 113, 113, 0.12);
-  border: 1px solid rgba(248, 113, 113, 0.28);
-  border-radius: 10px;
+  background: color-mix(in srgb, var(--error) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--error) 28%, transparent);
+  border-radius: var(--radius-sm);
   color: var(--error);
   font-size: 13px;
   font-weight: 600;
@@ -421,13 +449,13 @@ input:focus {
   transition: background 0.2s var(--ease);
 }
 .btn-danger:hover {
-  background: rgba(248, 113, 113, 0.2);
+  background: color-mix(in srgb, var(--error) 20%, transparent);
 }
 
 .link-btn {
   background: none;
   border: none;
-  color: var(--accent);
+  color: var(--accent-foreground);
   font-size: 12.5px;
   font-weight: 600;
   font-family: var(--font);
@@ -484,11 +512,11 @@ input:focus {
 
 .count-badge {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-foreground);
   font-size: 11px;
   font-weight: 700;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   min-width: 22px;
   text-align: center;
 }
@@ -496,7 +524,7 @@ input:focus {
 .context-card {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -512,7 +540,7 @@ input:focus {
 .avatar {
   width: 32px;
   height: 32px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--bg-soft);
   border: 1px solid var(--border);
   color: var(--text-muted);
@@ -547,7 +575,7 @@ input:focus {
   text-align: center;
   background: var(--bg-elevated);
   border: 1px dashed var(--border-strong);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   color: var(--text-muted);
   font-size: 13px;
   line-height: 1.45;
@@ -557,7 +585,7 @@ input:focus {
 .tweet-item {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   padding: 11px 12px;
   cursor: pointer;
   transition: background 0.2s var(--ease), border-color 0.2s var(--ease), transform 0.2s var(--ease);
@@ -573,8 +601,8 @@ input:focus {
 
 .tweet-item-new {
   animation: tweetInsert 0.4s var(--ease);
-  border-color: rgba(139, 92, 246, 0.45);
-  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.2);
+  border-color: color-mix(in srgb, var(--accent-strong) 45%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-strong) 20%, transparent);
 }
 
 .tweet-item-top {
@@ -624,7 +652,7 @@ input:focus {
 .tweet-collect-btn {
   width: 24px;
   height: 24px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-muted);
@@ -636,7 +664,7 @@ input:focus {
 }
 .tweet-collect-btn:hover {
   background: var(--bg-hover);
-  color: var(--accent);
+  color: var(--accent-foreground);
   border-color: var(--border);
 }
 .tweet-collect-btn .material-symbols-outlined {
@@ -669,7 +697,7 @@ input:focus {
 .tweet-skeleton {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -678,7 +706,7 @@ input:focus {
 
 .skel {
   height: 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-full);
   background: linear-gradient(90deg, var(--bg-soft) 25%, var(--bg-hover) 50%, var(--bg-soft) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.2s ease-in-out infinite;
@@ -692,7 +720,7 @@ input:focus {
   position: absolute;
   inset: 0;
   z-index: 40;
-  background: rgba(11, 11, 13, 0.72);
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
   backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
@@ -708,7 +736,7 @@ input:focus {
   padding: 24px 28px;
   background: var(--bg-elevated);
   border: 1px solid var(--border-strong);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
   animation: fadeInUp 0.25s var(--ease);
 }
@@ -733,7 +761,7 @@ input:focus {
   position: fixed;
   inset: 0;
   z-index: 50;
-  background: rgba(0, 0, 0, 0.7);
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
   backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
@@ -747,7 +775,7 @@ input:focus {
   max-width: 320px;
   background: var(--bg-elevated);
   border: 1px solid var(--border-strong);
-  border-radius: 14px;
+  border-radius: var(--radius-xl);
   padding: 14px;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.55);
 }
@@ -781,7 +809,7 @@ input:focus {
 .profile-avatar {
   width: 44px;
   height: 44px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   background: var(--bg-soft);
   border: 1px solid var(--border);
   display: flex;
@@ -826,7 +854,7 @@ input:focus {
   justify-content: space-between;
   width: 100%;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--bg-soft);
   border: 1px solid var(--border);
   color: var(--text-secondary);
@@ -868,7 +896,7 @@ input:focus {
   padding: 9px 10px;
   background: var(--bg-soft);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
 }
@@ -898,7 +926,7 @@ input:focus {
   font-weight: 600;
   color: var(--text-muted);
   background: var(--bg-hover);
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   padding: 2px 8px;
   flex-shrink: 0;
 }
@@ -930,7 +958,7 @@ input:focus {
   color: var(--text);
   background: var(--bg-soft);
   padding: 9px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -968,9 +996,9 @@ input:focus {
 .loader-ring {
   width: 28px;
   height: 28px;
-  border: 2.5px solid rgba(255, 255, 255, 0.12);
+  border: 2.5px solid var(--border-strong);
   border-top-color: var(--accent);
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   animation: spin 0.75s linear infinite;
 }
 .loader-ring.large {

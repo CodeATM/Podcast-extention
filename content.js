@@ -61,11 +61,11 @@
     if (!toast) {
       toast = document.createElement("div");
       toast.id = id;
-      toast.style.cssText = "position:fixed;bottom:16px;right:16px;z-index:999999;padding:10px 14px;border-radius:10px;font:600 13px/1.4 sans-serif;color:#fff;box-shadow:0 6px 20px rgba(0,0,0,.45);transition:opacity .3s ease;max-width:300px;pointer-events:none;";
+      toast.style.cssText = "position:fixed;bottom:16px;right:16px;z-index:999999;padding:10px 14px;border-radius:10px;font:600 13px/1.4 sans-serif;color:#fafafa;box-shadow:0 6px 20px rgba(0,0,0,.45);transition:opacity .3s ease;max-width:300px;pointer-events:none;";
       document.body.appendChild(toast);
     }
-    toast.style.background = isError ? "#7f1d1d" : "#1a1625";
-    toast.style.border = isError ? "1px solid #f87171" : "1px solid rgba(139, 92, 246, 0.45)";
+    toast.style.background = isError ? "color-mix(in srgb, #7f1d1d 92%, #000)" : "#111111";
+    toast.style.border = isError ? "1px solid #f87171" : "1px solid rgba(77, 163, 232, 0.45)";
     toast.textContent = message;
     toast.style.display = "block";
     toast.style.opacity = "0";

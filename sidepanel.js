@@ -35,6 +35,9 @@
   async function logout() {
     return sendToBackground({ action: "AUTH_LOGOUT" });
   }
+  function warmBackendConnection() {
+    void sendToBackground({ action: "API_HEALTH" });
+  }
   async function getSavedTweets() {
     const response = await sendToBackground({ action: "API_FETCH", path: "/api/tweets", method: "GET" });
     if (!response.success) {
@@ -123,6 +126,7 @@
   async function initPanel() {
     setupEventListeners();
     registerTabListeners();
+    warmBackendConnection();
     try {
       currentConfig = await getSonaraConfig();
       await checkActiveTab();

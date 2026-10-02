@@ -2,6 +2,7 @@ import {
   getSonaraConfig,
   login,
   logout,
+  warmBackendConnection,
   formatTimeAgo,
   getSavedTweets,
   getCollections,
@@ -33,6 +34,10 @@ let currentCollectionTweetId: string | null = null;
 async function initPanel(): Promise<void> {
   setupEventListeners();
   registerTabListeners();
+
+  // Fire-and-forget: warms a spun-down Render instance in the background while
+  // the panel renders. Deliberately not awaited.
+  warmBackendConnection();
 
   try {
     currentConfig = await getSonaraConfig();

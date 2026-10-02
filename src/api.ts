@@ -56,6 +56,18 @@ export async function syncTweetToBackend(tweetData: TweetData): Promise<BackendS
 }
 
 /**
+ * Ping the backend's public `GET /health` to open a connection ahead of the
+ * first real request. A Render instance that has spun down starts booting as
+ * soon as this lands, which happens while the user is still reading the panel.
+ *
+ * Fire-and-forget: nothing waits on the response, and there is nothing to
+ * handle if it never arrives.
+ */
+export function warmBackendConnection(): void {
+  void sendToBackground({ action: 'API_HEALTH' });
+}
+
+/**
  * Load saved tweets from the backend (`GET /api/tweets`). Throws with
  * `code = 'UNAUTHENTICATED'` when the session is missing/expired.
  */

@@ -143,6 +143,8 @@ export type BackgroundMessage =
   | { action: 'SET_BACKEND_URL'; backendUrl: string }
   | { action: 'API_SAVE_CONTENT'; tweet: TweetData }
   | { action: 'API_FETCH'; path: string; method?: string; body?: unknown }
+  /** Fire-and-forget wake-up ping of `GET /health`. Nothing waits on a reply. */
+  | { action: 'API_HEALTH' }
   | { action: 'TWEETS_UPDATED'; tweet?: TweetData; serverId?: string };
 
 export type BackgroundResponse =
