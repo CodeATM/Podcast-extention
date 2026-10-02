@@ -130,10 +130,7 @@ function setupEventListeners(): void {
   chrome.runtime.onMessage.addListener((message) => {
     if (message?.action === 'TWEETS_UPDATED') {
       if (message.tweet) {
-        const isNew = prependOptimisticTweet(message.tweet as TweetData, message.serverId as string | undefined);
-        if (isNew && message.serverId && !document.getElementById('dashboard-view')?.classList.contains('hidden')) {
-          void openCollectionPicker(message.serverId as string);
-        }
+        prependOptimisticTweet(message.tweet as TweetData, message.serverId as string | undefined);
       }
       return;
     }
@@ -342,9 +339,6 @@ async function handleCapture(): Promise<void> {
         setCaptureOverlayText('Saved');
         void delay(500).then(() => {
           resetCaptureButton();
-          if (response.serverId) {
-            void openCollectionPicker(response.serverId as string);
-          }
           resolve();
         });
       });

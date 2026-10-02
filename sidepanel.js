@@ -205,10 +205,7 @@
     chrome.runtime.onMessage.addListener((message) => {
       if (message?.action === "TWEETS_UPDATED") {
         if (message.tweet) {
-          const isNew = prependOptimisticTweet(message.tweet, message.serverId);
-          if (isNew && message.serverId && !document.getElementById("dashboard-view")?.classList.contains("hidden")) {
-            void openCollectionPicker(message.serverId);
-          }
+          prependOptimisticTweet(message.tweet, message.serverId);
         }
         return;
       }
@@ -397,9 +394,6 @@
           setCaptureOverlayText("Saved");
           void delay(500).then(() => {
             resetCaptureButton();
-            if (response.serverId) {
-              void openCollectionPicker(response.serverId);
-            }
             resolve();
           });
         });
