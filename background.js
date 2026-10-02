@@ -1,7 +1,20 @@
 "use strict";
 (() => {
   // src/auth/storage.ts
-  var DEFAULT_BACKEND_URL = "http://localhost:5000";
+  var DEFAULT_BACKEND_URL = "https://nodes-oz1k.onrender.com";
+  var LEGACY_LOCAL_BACKEND_URLS = ["http://localhost:5000", "http://127.0.0.1:5000"];
+  async function repointStoredBackendUrl() {
+    const result = await storageGet([STORAGE_KEYS.backendUrl]);
+    const current = result[STORAGE_KEYS.backendUrl];
+    if (typeof current !== "string")
+      return;
+    const clean = current.replace(/\/+$/, "");
+    if (!LEGACY_LOCAL_BACKEND_URLS.includes(clean))
+      return;
+    if (clean === DEFAULT_BACKEND_URL)
+      return;
+    await storageSet({ [STORAGE_KEYS.backendUrl]: DEFAULT_BACKEND_URL });
+  }
   var STORAGE_KEYS = {
     accessToken: "tp_access_token",
     refreshToken: "tp_refresh_token",
@@ -42,6 +55,7 @@
         await storageSet({ [STORAGE_KEYS.backendUrl]: url });
     }
     await storageRemove([STORAGE_KEYS.legacyApiKey, STORAGE_KEYS.legacyIdentity, STORAGE_KEYS.legacyBackendUrl]);
+    await repointStoredBackendUrl();
   }
   async function getBackendUrl() {
     const result = await storageGet([STORAGE_KEYS.backendUrl, STORAGE_KEYS.legacyBackendUrl]);

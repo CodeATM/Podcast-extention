@@ -1,7 +1,7 @@
 "use strict";
 (() => {
   // src/auth/storage.ts
-  var DEFAULT_BACKEND_URL = "http://localhost:5000";
+  var DEFAULT_BACKEND_URL = "https://nodes-oz1k.onrender.com";
 
   // src/api.ts
   function sendToBackground(message) {

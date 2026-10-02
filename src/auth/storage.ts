@@ -1,6 +1,30 @@
 import type { AuthSession, AuthTokens, AuthUser, SonaraConfig } from '../types';
 
-export const DEFAULT_BACKEND_URL = 'http://localhost:5000';
+export const DEFAULT_BACKEND_URL = 'https://nodes-oz1k.onrender.com';
+
+/**
+ * Pre-Render development origins. `tp_backend_url` is persisted on every
+ * successful login, so installs created before the hosted backend shipped are
+ * still pinned to localhost. `repointStoredBackendUrl` rewrites exactly these.
+ */
+const LEGACY_LOCAL_BACKEND_URLS = ['http://localhost:5000', 'http://127.0.0.1:5000'];
+
+/**
+ * Point installs still pinned at a local dev origin at the hosted backend.
+ * Only localhost variants are touched: any other stored URL was chosen on
+ * purpose (staging, a fork, a self-hosted box) and is left alone.
+ */
+export async function repointStoredBackendUrl(): Promise<void> {
+  const result = await storageGet([STORAGE_KEYS.backendUrl]);
+  const current = result[STORAGE_KEYS.backendUrl];
+  if (typeof current !== 'string') return;
+
+  const clean = current.replace(/\/+$/, '');
+  if (!LEGACY_LOCAL_BACKEND_URLS.includes(clean)) return;
+  if (clean === DEFAULT_BACKEND_URL) return;
+
+  await storageSet({ [STORAGE_KEYS.backendUrl]: DEFAULT_BACKEND_URL });
+}
 
 const STORAGE_KEYS = {
   accessToken: 'tp_access_token',
@@ -46,6 +70,7 @@ function storageRemove(keys: string[]): Promise<void> {
 /**
  * Migrate any legacy API-key-era storage into the session-based shape.
  * Copies an old backend URL if no modern one exists yet, then drops legacy keys.
+ * Also repoints installs still pinned at a local dev origin at the hosted backend.
  * Safe to call on install and on every browser startup.
  */
 export async function migrateLegacyStorage(): Promise<void> {
@@ -55,6 +80,7 @@ export async function migrateLegacyStorage(): Promise<void> {
     if (url) await storageSet({ [STORAGE_KEYS.backendUrl]: url });
   }
   await storageRemove([STORAGE_KEYS.legacyApiKey, STORAGE_KEYS.legacyIdentity, STORAGE_KEYS.legacyBackendUrl]);
+  await repointStoredBackendUrl();
 }
 
 export async function getBackendUrl(): Promise<string> {
