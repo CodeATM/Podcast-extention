@@ -7,18 +7,28 @@ Your extension is ready for Chrome Web Store submission with these files:
 ```
 twitter-podcast-extension/
 ├── manifest.json          # Extension configuration
-├── content.js            # Main functionality
-├── popup.html            # Extension popup interface
-├── popup.js              # Popup logic
-├── popup.css             # Popup styling
-├── styles.css            # Content script styling
-├── icons/                # Extension icons
-│   ├── icon16.png
-│   ├── icon48.png
-│   └── icon128.png
-├── README.md             # Documentation
-├── PRIVACY.md            # Privacy policy
-└── CHROME_STORE_SUBMISSION.md  # This guide
+├── background.js          # Service worker
+├── content.js             # Content script
+├── oauth-capture.js       # OAuth callback capture
+├── offscreen.html         # Offscreen theme probe
+├── offscreen.js           # Offscreen theme probe logic
+├── sidepanel.html         # Side panel interface
+├── sidepanel.js           # Side panel logic
+├── sidepanel.css          # Side panel styling
+├── styles.css             # Content script styling
+├── icons/                 # Theme-aware extension icons
+│   ├── light/             # Dark mark, used on light toolbars/themes
+│   │   ├── icon16.png
+│   │   ├── icon48.png
+│   │   └── icon128.png
+│   └── dark/              # Light mark, used on dark toolbars/themes
+│       ├── icon16.png
+│       ├── icon48.png
+│       └── icon128.png
+├── logo.png               # App logo
+├── logo-white.png         # White logo variant (side panel)
+├── README.md              # Documentation
+└── PRIVACY.md             # Privacy policy
 ```
 
 ## 🚀 **Submission Steps**

@@ -9,11 +9,15 @@ mkdir temp_package
 copy manifest.json temp_package\
 copy background.js temp_package\
 copy content.js temp_package\
+copy oauth-capture.js temp_package\
+copy offscreen.html temp_package\
+copy offscreen.js temp_package\
 copy sidepanel.html temp_package\
 copy sidepanel.js temp_package\
 copy sidepanel.css temp_package\
 copy styles.css temp_package\
 copy logo.png temp_package\
+copy logo-white.png temp_package\
 copy README.md temp_package\
 copy PRIVACY.md temp_package\
 

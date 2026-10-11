@@ -10,6 +10,8 @@ const filesToInclude = [
     'background.js',
     'content.js',
     'oauth-capture.js',
+    'offscreen.html',
+    'offscreen.js',
     'sidepanel.html',
     'sidepanel.js',
     'sidepanel.css',
@@ -18,9 +20,12 @@ const filesToInclude = [
     'logo-white.png',
     'README.md',
     'PRIVACY.md',
-    'icons/icon16.png',
-    'icons/icon48.png',
-    'icons/icon128.png'
+    'icons/light/icon16.png',
+    'icons/light/icon48.png',
+    'icons/light/icon128.png',
+    'icons/dark/icon16.png',
+    'icons/dark/icon48.png',
+    'icons/dark/icon128.png'
 ];
 
 // Files to exclude from package

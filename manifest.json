@@ -10,7 +10,8 @@
         "tabs",
         "activeTab",
         "scripting",
-        "sidePanel"
+        "sidePanel",
+        "offscreen"
     ],
     "host_permissions": [
         "https://twitter.com/*",
@@ -53,14 +54,42 @@
     "action": {
         "default_title": "Sonara",
         "default_icon": {
-            "16": "icons/icon16.png",
-            "48": "icons/icon48.png",
-            "128": "icons/icon128.png"
-        }
+            "16": "icons/light/icon16.png",
+            "48": "icons/light/icon48.png",
+            "128": "icons/light/icon128.png"
+        },
+        "icon_variants": [
+            {
+                "16": "icons/light/icon16.png",
+                "48": "icons/light/icon48.png",
+                "128": "icons/light/icon128.png",
+                "color_schemes": ["light"]
+            },
+            {
+                "16": "icons/dark/icon16.png",
+                "48": "icons/dark/icon48.png",
+                "128": "icons/dark/icon128.png",
+                "color_schemes": ["dark"]
+            }
+        ]
     },
     "icons": {
-        "16": "icons/icon16.png",
-        "48": "icons/icon48.png",
-        "128": "icons/icon128.png"
-    }
+        "16": "icons/light/icon16.png",
+        "48": "icons/light/icon48.png",
+        "128": "icons/light/icon128.png"
+    },
+    "icon_variants": [
+        {
+            "16": "icons/light/icon16.png",
+            "48": "icons/light/icon48.png",
+            "128": "icons/light/icon128.png",
+            "color_schemes": ["light"]
+        },
+        {
+            "16": "icons/dark/icon16.png",
+            "48": "icons/dark/icon48.png",
+            "128": "icons/dark/icon128.png",
+            "color_schemes": ["dark"]
+        }
+    ]
 }

@@ -559,6 +559,11 @@ async function handleMessage(message: BackgroundMessage): Promise<BackgroundResp
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message && message.type === 'SONARA_THEME') {
+    void applyThemeIcon(Boolean(message.dark));
+    return false;
+  }
+
   if (
     message &&
     (message.action === 'OAUTH_FRAGMENT_CAPTURE' || message.action === 'OAUTH_ERROR_CAPTURE')
@@ -603,8 +608,52 @@ async function openSidePanelForTab(tab?: chrome.tabs.Tab): Promise<void> {
   }
 }
 
+const THEME_ICONS: Record<'light' | 'dark', Record<string, string>> = {
+  light: {
+    '16': 'icons/light/icon16.png',
+    '48': 'icons/light/icon48.png',
+    '128': 'icons/light/icon128.png',
+  },
+  dark: {
+    '16': 'icons/dark/icon16.png',
+    '48': 'icons/dark/icon48.png',
+    '128': 'icons/dark/icon128.png',
+  },
+};
+
+async function applyThemeIcon(dark: boolean): Promise<void> {
+  if (!chrome.action?.setIcon) return;
+  try {
+    await chrome.action.setIcon({ path: dark ? THEME_ICONS.dark : THEME_ICONS.light });
+  } catch (err) {
+    console.warn('Theme icon:', (err as Error)?.message || err);
+  }
+}
+
+let offscreenReady: Promise<void> | null = null;
+
+/**
+ * The service worker cannot read `prefers-color-scheme`, so an offscreen
+ * document reports it here. Chrome has no manifest key for theme-aware action
+ * icons, so this is how the toolbar icon follows the browser colour scheme.
+ */
+function ensureOffscreenDocument(): Promise<void> {
+  if (typeof chrome.offscreen === 'undefined') return Promise.resolve();
+  if (!offscreenReady) {
+    offscreenReady = chrome.offscreen
+      .createDocument({
+        url: 'offscreen.html',
+        reasons: ['MATCH_MEDIA' as unknown as chrome.offscreen.Reason],
+        justification: 'Detect the browser colour scheme so the toolbar icon matches the theme.',
+      })
+      .catch(() => undefined);
+  }
+  return offscreenReady;
+}
+
 // Ensure behavior is set whenever the service worker wakes up.
 enableSidePanel();
+void ensureOffscreenDocument();
 
 // Fires when there is no default_popup — opens the side panel on icon click.
 chrome.action.onClicked.addListener((tab) => {
@@ -613,11 +662,13 @@ chrome.action.onClicked.addListener((tab) => {
 
 chrome.runtime.onInstalled.addListener(() => {
   enableSidePanel();
+  void ensureOffscreenDocument();
   void migrateLegacyStorage().then(() => getBackendUrl());
 });
 
 chrome.runtime.onStartup.addListener(() => {
   enableSidePanel();
+  void ensureOffscreenDocument();
   void migrateLegacyStorage().then(() => getSessionConfig());
 });
 
